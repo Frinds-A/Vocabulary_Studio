@@ -557,7 +557,7 @@ ApplicationWindow {
         root.width = Math.min(1440, Math.max(root.minimumWidth, Screen.desktopAvailableWidth - 60))
         root.height = Math.min(920, Math.max(root.minimumHeight, Screen.desktopAvailableHeight - 40))
         root.enterCurrentPage()
-        root.welcomeOpen = !backend.welcomeSeen
+        root.welcomeOpen = backend.welcomePending
     }
 
     // -----------------------------------------------------------------

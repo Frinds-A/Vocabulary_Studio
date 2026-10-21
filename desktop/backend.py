@@ -19,6 +19,11 @@ from typing import Any
 
 from PySide6.QtCore import QObject, Property, QUrl, Signal, Slot
 
+try:
+    from .version import APP_VERSION
+except ImportError:  # pragma: no cover
+    from version import APP_VERSION
+
 
 REVIEW_INTERVALS = (24 * 60 * 60_000, 2 * 24 * 60 * 60_000,
                     4 * 24 * 60 * 60_000, 7 * 24 * 60 * 60_000,
@@ -108,7 +113,8 @@ def _default_state() -> dict[str, Any]:
         "dailyGoals": dict(DEFAULT_DAILY_GOALS),
         "customGoals": {},
         "settings": {"autoSpeak": True, "spacedRepetition": True, "includeNotebook": False,
-                     "voiceAccent": "us", "autoCheckUpdates": True, "welcomeSeen": False},
+                     "voiceAccent": "us", "autoCheckUpdates": True,
+                     "welcomeSeen": False, "welcomeVersion": ""},
         "progress": {},
         "attempts": [],
         "studySeconds": 0,
@@ -196,6 +202,8 @@ class StudyBackend(QObject):
                                       for key in ("autoSpeak", "spacedRepetition", "includeNotebook",
                                                   "autoCheckUpdates", "welcomeSeen")
                                       if key in saved["settings"]})
+            if isinstance(saved["settings"].get("welcomeVersion"), str):
+                state["settings"]["welcomeVersion"] = saved["settings"]["welcomeVersion"]
             if saved["settings"].get("voiceAccent") in {"us", "uk"}:
                 state["settings"]["voiceAccent"] = saved["settings"]["voiceAccent"]
         if isinstance(saved.get("progress"), dict):
@@ -780,9 +788,16 @@ class StudyBackend(QObject):
     def welcomeSeen(self):
         return bool(self._state.get("settings", {}).get("welcomeSeen", False))
 
+    @Property(bool, notify=stateChanged)
+    def welcomePending(self):
+        settings = self._state.get("settings", {})
+        return (not bool(settings.get("welcomeSeen", False))
+                or settings.get("welcomeVersion", "") != APP_VERSION)
+
     @Slot(bool)
     def setWelcomeSeen(self, seen: bool):
         self._state.setdefault("settings", {})["welcomeSeen"] = bool(seen)
+        self._state["settings"]["welcomeVersion"] = APP_VERSION if seen else ""
         try:
             self._save_state()
         except OSError:

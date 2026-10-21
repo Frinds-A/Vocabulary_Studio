@@ -40,7 +40,7 @@ Item {
     Rectangle {
         id: card
         width: Math.min(parent.width - 80, 700)
-        height: Math.min(parent.height - 48, 620)
+        height: Math.min(parent.height - 48, 690)
         anchors.centerIn: parent
         radius: 18
         color: T.white
@@ -155,6 +155,38 @@ Item {
                 Layout.topMargin: 2
                 Layout.preferredHeight: 1
                 color: T.line
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: "关于更新与源码"
+                color: T.ink
+                font.family: T.fontCN
+                font.pixelSize: 14
+                font.bold: true
+            }
+            Text {
+                Layout.fillWidth: true
+                text: "学习和发音都可以离线使用；只有检查更新、下载新版本需要联网。更新会在软件内完成，不会跳转浏览器。"
+                color: T.muted
+                font.family: T.fontCN
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+                lineHeight: 1.45
+            }
+            Text {
+                Layout.fillWidth: true
+                text: "GitHub 源码：https://github.com/Frinds-A/Vocabulary_Studio\n如果词序帮你多记住了一个词，求各位大人点一个 Star 喵！QAQ"
+                color: T.accent
+                font.family: T.fontCN
+                font.pixelSize: 11
+                wrapMode: Text.WordWrap
+                lineHeight: 1.55
+                MouseArea {
+                    anchors.fill: parent
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: Qt.openUrlExternally("https://github.com/Frinds-A/Vocabulary_Studio")
+                }
             }
 
             Text {
