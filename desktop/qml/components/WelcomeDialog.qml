@@ -171,6 +171,69 @@ Item {
                         width: parent.width - 12
                         spacing: 12
 
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 104
+                        radius: 12
+                        color: T.neutralPale
+                        border.width: 1
+                        border.color: T.lineStrong
+
+                        RowLayout {
+                            anchors.fill: parent
+                            anchors.margins: 14
+                            spacing: 12
+
+                            Rectangle {
+                                width: 38
+                                height: 38
+                                radius: 19
+                                color: T.ink
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "★"
+                                    color: T.white
+                                    font.family: T.fontEN
+                                    font.pixelSize: 18
+                                }
+                            }
+                            ColumnLayout {
+                                Layout.fillWidth: true
+                                spacing: 3
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: "词序是我一个人慢慢做出来的。"
+                                    color: T.ink
+                                    font.family: T.fontCN
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: "源码放在 GitHub 上；如果它帮你多记住了一个词，求各位大人点一颗 Star 喵！QAQ"
+                                    color: T.inkSoft
+                                    font.family: T.fontCN
+                                    font.pixelSize: 11
+                                    wrapMode: Text.WordWrap
+                                    lineHeight: 1.45
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: "github.com/Frinds-A/Vocabulary_Studio"
+                                    color: T.accent
+                                    font.family: T.fontEN
+                                    font.pixelSize: 10
+                                    elide: Text.ElideRight
+                                    MouseArea {
+                                        anchors.fill: parent
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: Qt.openUrlExternally("https://github.com/Frinds-A/Vocabulary_Studio")
+                                    }
+                                }
+                            }
+                        }
+                    }
+
                     Text {
                         Layout.fillWidth: true
                         text: "怎么学"
@@ -208,7 +271,7 @@ Item {
 
             Text {
                 Layout.fillWidth: true
-                text: "关于更新与源码"
+                text: "关于更新"
                 color: T.ink
                 font.family: T.fontCN
                 font.pixelSize: 14
@@ -222,21 +285,6 @@ Item {
                 font.pixelSize: 11
                 wrapMode: Text.WordWrap
                 lineHeight: 1.45
-            }
-            Text {
-                Layout.fillWidth: true
-                objectName: "welcomeStar"
-                text: "GitHub 源码：https://github.com/Frinds-A/Vocabulary_Studio\n如果词序帮你多记住了一个词，求各位大人点一个 Star 喵！QAQ"
-                color: T.accent
-                font.family: T.fontCN
-                font.pixelSize: 11
-                wrapMode: Text.WordWrap
-                lineHeight: 1.55
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Qt.openUrlExternally("https://github.com/Frinds-A/Vocabulary_Studio")
-                }
             }
 
             Text {
