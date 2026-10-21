@@ -25,7 +25,8 @@ ApplicationWindow {
     property bool immersive: false
     property bool settingsOpen: false
     property bool welcomeOpen: false
-    readonly property bool modalOpen: root.settingsOpen || root.welcomeOpen
+    property bool updateOpen: false
+    readonly property bool modalOpen: root.settingsOpen || root.welcomeOpen || root.updateOpen
     property double lastFocusToggle: 0
     property string toastMessage: ""
     property real promptOpacity: 1
@@ -666,6 +667,76 @@ ApplicationWindow {
             }
         }
 
+        Rectangle {
+            id: updateBanner
+            property bool dismissed: false
+            visible: updater.available && !root.updateOpen && !root.welcomeOpen && !dismissed
+            anchors.right: parent.right
+            anchors.bottom: parent.bottom
+            anchors.rightMargin: 24
+            anchors.bottomMargin: 24
+            width: updateRow.implicitWidth + 26
+            height: 44
+            radius: 22
+            color: T.ink
+            z: 55
+            layer.enabled: true
+            layer.effect: MultiEffect {
+                shadowEnabled: true
+                shadowColor: "#22000000"
+                shadowBlur: 0.4
+                shadowVerticalOffset: 4
+                blurMax: 18
+            }
+
+            Row {
+                id: updateRow
+                anchors.centerIn: parent
+                spacing: 10
+                z: 1
+                Text {
+                    text: "发现新版本 v" + updater.latestVersion
+                    color: T.white
+                    font.family: T.fontCN
+                    font.pixelSize: 12
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Rectangle {
+                    width: 1
+                    height: 14
+                    color: "#55FFFFFF"
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    text: "查看更新"
+                    color: T.white
+                    font.family: T.fontCN
+                    font.pixelSize: 12
+                    font.bold: true
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+                Text {
+                    text: "×"
+                    color: "#AAFFFFFF"
+                    font.family: T.fontEN
+                    font.pixelSize: 15
+                    anchors.verticalCenter: parent.verticalCenter
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -6
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: updateBanner.dismissed = true
+                    }
+                }
+            }
+            MouseArea {
+                anchors.fill: parent
+                anchors.rightMargin: 22
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.updateOpen = true
+            }
+        }
+
         // -------------------------------------------------------------
         // Shell
         // -------------------------------------------------------------
@@ -1071,6 +1142,13 @@ ApplicationWindow {
             root.settingsOpen = false
             root.welcomeOpen = true
         }
+        onUpdateRequested: root.updateOpen = true
+    }
+
+    UpdateDialog {
+        anchors.fill: parent
+        visible: root.updateOpen
+        onClosed: root.updateOpen = false
     }
 
     WelcomeDialog {

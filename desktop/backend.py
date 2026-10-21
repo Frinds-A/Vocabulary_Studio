@@ -108,7 +108,7 @@ def _default_state() -> dict[str, Any]:
         "dailyGoals": dict(DEFAULT_DAILY_GOALS),
         "customGoals": {},
         "settings": {"autoSpeak": True, "spacedRepetition": True, "includeNotebook": False,
-                     "voiceAccent": "us", "welcomeSeen": False},
+                     "voiceAccent": "us", "autoCheckUpdates": True, "welcomeSeen": False},
         "progress": {},
         "attempts": [],
         "studySeconds": 0,
@@ -193,7 +193,8 @@ class StudyBackend(QObject):
             state["customGoals"] = {str(key): _safe_int(value, 20, 1, 200) for key, value in saved["customGoals"].items()}
         if isinstance(saved.get("settings"), dict):
             state["settings"].update({key: bool(saved["settings"][key])
-                                      for key in ("autoSpeak", "spacedRepetition", "includeNotebook", "welcomeSeen")
+                                      for key in ("autoSpeak", "spacedRepetition", "includeNotebook",
+                                                  "autoCheckUpdates", "welcomeSeen")
                                       if key in saved["settings"]})
             if saved["settings"].get("voiceAccent") in {"us", "uk"}:
                 state["settings"]["voiceAccent"] = saved["settings"]["voiceAccent"]
@@ -1533,7 +1534,7 @@ class StudyBackend(QObject):
 
     @Slot(str, "QVariant")
     def saveSetting(self, key: str, value: Any):
-        if key in {"autoSpeak", "spacedRepetition", "includeNotebook"}:
+        if key in {"autoSpeak", "spacedRepetition", "includeNotebook", "autoCheckUpdates"}:
             self._state["settings"][key] = bool(value)
             self._emit_changed()
         elif key == "dailyGoal":

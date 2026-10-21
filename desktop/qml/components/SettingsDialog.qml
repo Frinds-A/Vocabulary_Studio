@@ -12,6 +12,7 @@ Item {
     signal exportBackupRequested()
     signal importBackupRequested()
     signal formatted()
+    signal updateRequested()
 
     property int section: 0
     property int goalValue: 20
@@ -365,6 +366,14 @@ Item {
 
                                 SettingToggle {
                                     Layout.fillWidth: true
+                                    title: "自动检查更新"
+                                    subtitle: "启动时检测新版本；关闭后仍可手动检查"
+                                    glyph: "↓"
+                                    checked: !backend.settings || backend.settings.autoCheckUpdates !== false
+                                    onToggled: backend.saveSetting("autoCheckUpdates", !checked)
+                                }
+                                SettingToggle {
+                                    Layout.fillWidth: true
                                     title: "答题后自动播放发音"
                                     subtitle: "提交后播放单词读音"
                                     glyph: "♫"
@@ -515,22 +524,41 @@ Item {
                                     color: T.white
                                     border.width: 1
                                     border.color: T.line
-                                    ColumnLayout {
+                                    RowLayout {
                                         anchors.fill: parent
                                         anchors.margins: 20
-                                        spacing: 4
-                                        Text {
-                                            text: "词序 · Vocabulary Studio"
-                                            color: T.ink
-                                            font.family: T.fontCN
-                                            font.pixelSize: 15
-                                            font.bold: true
+                                        spacing: 12
+                                        ColumnLayout {
+                                            Layout.fillWidth: true
+                                            spacing: 4
+                                            Text {
+                                                text: "词序 · Vocabulary Studio"
+                                                color: T.ink
+                                                font.family: T.fontCN
+                                                font.pixelSize: 15
+                                                font.bold: true
+                                            }
+                                            Text {
+                                                text: "Version " + updater.currentVersion + " · 离线运行 · 无需注册"
+                                                color: T.muted
+                                                font.family: T.fontCN
+                                                font.pixelSize: 11
+                                            }
+                                            Text {
+                                                visible: updater.state === "latest" || updater.state === "error"
+                                                text: updater.statusText
+                                                color: updater.state === "error" ? T.red : T.faint
+                                                font.family: T.fontCN
+                                                font.pixelSize: 10
+                                            }
                                         }
-                                        Text {
-                                            text: "Version 1.0.0 · 离线运行 · 无需注册"
-                                            color: T.muted
-                                            font.family: T.fontCN
-                                            font.pixelSize: 11
+                                        TextButton {
+                                            text: "检查更新"
+                                            bordered: true
+                                            onClicked: {
+                                                updater.checkForUpdates()
+                                                dialog.updateRequested()
+                                            }
                                         }
                                     }
                                 }

@@ -393,7 +393,7 @@ Item {
                             font.bold: true
                         }
                         Text {
-                            text: "Version 1.0.0 · 离线运行 · 无需注册"
+                            text: "Version " + updater.currentVersion + " · 离线运行 · 无需注册"
                             color: T.muted
                             font.family: T.fontCN
                             font.pixelSize: 11

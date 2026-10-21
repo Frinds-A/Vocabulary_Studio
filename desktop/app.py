@@ -36,8 +36,12 @@ from PySide6.QtQuickControls2 import QQuickStyle
 
 try:  # Support both module launch and direct launch from the project folder.
     from .backend import StudyBackend
+    from .updater import Updater
+    from .version import APP_VERSION
 except ImportError:  # pragma: no cover - exercised by `python desktop/app.py`
     from backend import StudyBackend
+    from updater import Updater
+    from version import APP_VERSION
 
 
 def _asset_path(name: str) -> Path:
@@ -57,7 +61,7 @@ def main() -> int:
     app.setApplicationName("词序桌面版")
     app.setApplicationDisplayName("词序 · Vocabulary Studio")
     app.setOrganizationName("Lexicon Studio")
-    app.setApplicationVersion("1.0.0")
+    app.setApplicationVersion(APP_VERSION)
     app.setFont(QFont("Microsoft YaHei UI", 10))
 
     icon_path = _asset_path("icon.ico")
@@ -65,7 +69,9 @@ def main() -> int:
         app.setWindowIcon(QIcon(str(icon_path)))
     engine = QQmlApplicationEngine()
     backend = StudyBackend()
+    updater = Updater(backend, app)
     engine.rootContext().setContextProperty("backend", backend)
+    engine.rootContext().setContextProperty("updater", updater)
     qml_path = Path(__file__).resolve().parent / "qml" / "Main.qml"
     if getattr(sys, "frozen", False):
         qml_path = Path(getattr(sys, "_MEIPASS", Path(sys.executable).resolve().parent)) / "qml" / "Main.qml"
@@ -92,6 +98,7 @@ def main() -> int:
                 )
         except Exception:
             pass
+    updater.startAutoCheck()
     return app.exec()
 
 
