@@ -1,0 +1,80 @@
+{
+  "schemaVersion": 2,
+  "localSource": "六级你还在背单词吗part1核心词（纯单词）.txt",
+  "providedWords": 2178,
+  "providedWordsCovered": 2178,
+  "definitionCoverage": {
+    "cet6Book": 1285,
+    "postgradBook": 510,
+    "ecdict": 383
+  },
+  "postgradDefinitionsRepaired": [
+    "reform",
+    "tow",
+    "dread",
+    "boycott",
+    "curse",
+    "nonetheless",
+    "twinkle",
+    "glide",
+    "auction",
+    "revolt",
+    "slap",
+    "arrest",
+    "fore",
+    "gaze",
+    "exile",
+    "compute",
+    "shiver",
+    "hug",
+    "envy",
+    "blush",
+    "collapse",
+    "debate",
+    "assault",
+    "giggle",
+    "glimpse",
+    "stroll",
+    "cease"
+  ],
+  "counts": {
+    "cet6Words": 2178,
+    "cet6Phrases": 1201,
+    "postgradWords": 3728,
+    "postgradPhrases": 1200,
+    "cet6Outline": 5523
+  },
+  "sources": [
+    {
+      "name": "cet6",
+      "url": "https://raw.githubusercontent.com/kajweb/dict/master/book/1521164633851_CET6_3.zip",
+      "sha256": "053bbcfecc82ca3cea7d4bcafdb0fea56c019b8e61d544fab462cd2bf72d983f"
+    },
+    {
+      "name": "postgrad",
+      "url": "https://raw.githubusercontent.com/kajweb/dict/master/book/1521164658897_KaoYan_3.zip",
+      "sha256": "42030fb17f85e13e096c8df5c84f748cc6119601ff2638d20b7712707767454a"
+    },
+    {
+      "name": "ecdict",
+      "url": "https://raw.githubusercontent.com/skywind3000/ECDICT/master/ecdict.csv",
+      "sha256": "1a6947e04785db63613a92e14903cdae7954f7e84860b10e68e5c7cbb3f9c3cf"
+    },
+    {
+      "name": "cet6Outline",
+      "file": "六级大纲词汇.pdf",
+      "sha256": "ad4b73236f7bd728b24fee1f65f881abe736e08a12eacf22cdbf262eed1a496a",
+      "pages": 155,
+      "entries": 5523
+    }
+  ],
+  "notes": "Vocabulary records include senses grouped by normalized source POS. CET6 words preserve the provided file order. Phrases are heuristic study selections (up to 1,200 per source book, plus supplied baby boom), not a measured frequency ranking or complete exam syllabus. Some words have no upstream example or phonetic. A small reviewed sense correction map is in the import script. See DATA_SOURCES.md for provenance and licenses. The cet6Outline collection was extracted from a user-supplied 155-page PDF; it is kept separate from cet6Words.",
+  "outline": {
+    "file": "六级大纲词汇.pdf",
+    "pages": 155,
+    "entries": 5523,
+    "duplicateHeadwords": 5,
+    "missingMeaning": 0,
+    "missingPhonetic": 0
+  }
+}
