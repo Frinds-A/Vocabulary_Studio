@@ -170,10 +170,11 @@ class Updater(QObject):
             notes = str(payload.get("body") or "").strip()
             if len(notes) > 5000:
                 notes = notes[:5000] + "…"
+            download_url = str(asset.get("url") or asset.get("browser_download_url") or "")
             self._check_finished.emit({
                 "status": "available",
                 "version": latest,
-                "url": str(asset.get("browser_download_url") or ""),
+                "url": download_url,
                 "size": int(asset.get("size") or 0),
                 "digest": str(asset.get("digest") or ""),
                 "notes": notes,
@@ -235,7 +236,10 @@ class Updater(QObject):
                 return
             request = urllib.request.Request(
                 self._download_url,
-                headers={"User-Agent": "Cixu-Vocabulary-Studio-Updater"},
+                headers={
+                    "User-Agent": "Cixu-Vocabulary-Studio-Updater",
+                    "Accept": "application/octet-stream",
+                },
             )
             digest = hashlib.sha256()
             received = 0
