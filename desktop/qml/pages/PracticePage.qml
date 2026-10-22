@@ -51,6 +51,9 @@ Item {
     }
 
     function openDeckPicker() {
+        var point = deckPill.mapToItem(page, 0, deckPill.height + 6)
+        deckPicker.x = Math.max(20, Math.min(page.width - deckPicker.width - 20, point.x))
+        deckPicker.y = Math.max(20, Math.min(page.height - deckPicker.height - 20, point.y))
         deckPicker.open()
     }
 
@@ -152,6 +155,7 @@ Item {
             visible: !backend.hasSession || backend.sessionComplete
 
             Rectangle {
+                id: deckPill
                 implicitHeight: 38
                 implicitWidth: deckLabel.implicitWidth + 40
                 radius: 19
@@ -159,7 +163,7 @@ Item {
                 border.width: 1
                 border.color: T.line
                 HoverHandler { cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: deckPicker.open() }
+                TapHandler { onTapped: page.openDeckPicker() }
 
                 Row {
                     id: deckLabel
@@ -1187,8 +1191,6 @@ Item {
         parent: page
         width: 340
         height: Math.min(390, 52 + Math.max(1, (backend.decks || []).length) * 46)
-        x: Math.max(20, page.width - width - 40)
-        y: 154
         padding: 6
         modal: false
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside

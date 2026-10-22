@@ -38,15 +38,29 @@ Item {
             }
         }
 
-        Flow {
+        Row {
             Layout.fillWidth: true
-            spacing: 6
+            spacing: 4
             Repeater {
                 model: guide.chapters
-                delegate: Chip {
-                    label: String(modelData)
-                    selected: guide.current === index
-                    onClicked: guide.current = index
+                delegate: Rectangle {
+                    width: chapterLabel.implicitWidth + 20
+                    height: 28
+                    radius: 6
+                    color: guide.current === index ? T.neutralPale : "transparent"
+                    border.width: guide.current === index ? 1 : 0
+                    border.color: T.lineStrong
+                    HoverHandler { cursorShape: Qt.PointingHandCursor }
+                    TapHandler { onTapped: guide.current = index }
+                    Text {
+                        id: chapterLabel
+                        anchors.centerIn: parent
+                        text: String(modelData)
+                        color: guide.current === index ? T.ink : T.muted
+                        font.family: T.fontCN
+                        font.pixelSize: 10
+                        font.bold: guide.current === index
+                    }
                 }
             }
         }
