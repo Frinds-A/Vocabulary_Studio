@@ -337,6 +337,57 @@ Item {
                                 }
                                 SettingToggle {
                                     Layout.fillWidth: true
+                                    title: "忘记答案快捷键"
+                                    glyph: "⌨"
+                                    showSwitch: false
+                                    extraHeight: 44
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 18
+                                        anchors.rightMargin: 18
+                                        anchors.bottomMargin: 10
+                                        spacing: 8
+                                        Text {
+                                            text: "重写页使用，例如 Alt+F"
+                                            color: T.muted
+                                            font.family: T.fontCN
+                                            font.pixelSize: 11
+                                            Layout.fillWidth: true
+                                        }
+                                        Rectangle {
+                                            Layout.preferredWidth: 112
+                                            Layout.preferredHeight: 32
+                                            radius: 8
+                                            color: T.white
+                                            border.width: 1
+                                            border.color: forgotField.activeFocus ? T.ink : T.line
+                                            TextField {
+                                                id: forgotField
+                                                anchors.fill: parent
+                                                anchors.leftMargin: 10
+                                                anchors.rightMargin: 10
+                                                padding: 0
+                                                text: backend.forgotShortcut
+                                                color: T.ink
+                                                font.family: T.fontEN
+                                                font.pixelSize: 12
+                                                verticalAlignment: TextInput.AlignVCenter
+                                                background: Rectangle { color: "transparent" }
+                                                maximumLength: 32
+                                                onEditingFinished: backend.setForgotShortcut(text)
+                                                onAccepted: backend.setForgotShortcut(text)
+                                            }
+                                        }
+                                        TextButton {
+                                            text: "默认"
+                                            shortcut: ""
+                                            onClicked: backend.setForgotShortcut("Alt+F")
+                                        }
+                                    }
+                                }
+                                SettingToggle {
+                                    Layout.fillWidth: true
                                     title: "章节练习"
                                     glyph: "▤"
                                     checked: backend.chapterMode
