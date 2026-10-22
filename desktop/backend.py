@@ -1811,13 +1811,17 @@ class StudyBackend(QObject):
             session["result"]["typed"] = str(session.get("answer", ""))
             session["result"]["answerMarks"] = _spell_marks(session.get("answer"), current["word"])
 
-        # A missed word comes back later in the same round; a correct answer
-        # clears any still-pending repeat of that word.
+        # Only a missed word needs a second attempt.  A correct, skipped or
+        # revealed answer clears the still-pending repeat that was seeded by
+        # the initial two-pass queue.
         current_id = current["id"]
         max_passes = _safe_int(session.get("passes"), 2, 1, 2)
-        if not correct and not skipped:
-            ids = session["ids"]
-            position = session["position"]
+        ids = session["ids"]
+        position = session["position"]
+        if correct or skipped or revealed:
+            session["ids"] = [item_id for index, item_id in enumerate(ids)
+                              if not (item_id == current_id and index > position)]
+        elif not correct and not skipped:
             if ids.count(current_id) < max_passes and current_id not in ids[position + 1:]:
                 ids.insert(min(len(ids), position + 1 + 4), current_id)
 
