@@ -495,93 +495,115 @@ Item {
                 spacing: 0
                 visible: backend.hasSession && !backend.sessionComplete
 
-                RowLayout {
+                Rectangle {
                     Layout.fillWidth: true
-                    spacing: 14
+                    Layout.preferredHeight: 54
+                    radius: 10
+                    color: T.white
+                    border.width: 1
+                    border.color: T.line
 
-                    Text {
-                        text: "QUESTION " + String(backend.queuePosition || 0)
-                              + " / " + String(backend.queueTotal || 0)
-                        color: T.faint
-                        font.family: T.fontEN
-                        font.pixelSize: 10
-                        font.letterSpacing: 1.6
-                    }
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 14
+                        anchors.rightMargin: 12
+                        spacing: 8
 
-                    OccurrenceBadge {
-                        occurrence: backend.currentOccurrence
-                        Layout.alignment: Qt.AlignVCenter
-                    }
+                        Text {
+                            text: backend.selectedDeckName || "今日计划"
+                            color: T.ink
+                            font.family: T.fontCN
+                            font.pixelSize: 13
+                            font.bold: true
+                            elide: Text.ElideRight
+                            Layout.maximumWidth: 180
+                        }
+                        Rectangle { width: 1; height: 18; color: T.line }
+                        Text {
+                            text: backend.sessionChapter >= 0
+                                  ? "第 " + String(backend.sessionChapter + 1) + " 章" : "今日计划"
+                            color: T.inkSoft
+                            font.family: T.fontCN
+                            font.pixelSize: 12
+                        }
+                        Text {
+                            text: backend.currentMode === "choice" ? "选择释义"
+                                  : backend.currentMode === "dictation" ? "听音拼写" : "拼写练习"
+                            color: T.faint
+                            font.family: T.fontCN
+                            font.pixelSize: 11
+                        }
 
-                    AccentBar {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 6
-                        value: Number(backend.queueTotal || 0) > 0
-                               ? Number(backend.queuePosition || 0) / Number(backend.queueTotal)
-                               : 0
-                    }
+                        OccurrenceBadge {
+                            occurrence: backend.currentOccurrence
+                            Layout.alignment: Qt.AlignVCenter
+                        }
 
-                    Text {
-                        text: backend.currentMode === "choice" ? "选择释义"
-                              : backend.currentMode === "dictation" ? "听音拼写" : "拼写练习"
-                        color: T.muted
-                        font.family: T.fontCN
-                        font.pixelSize: 12
-                    }
+                        Item { Layout.fillWidth: true }
 
-                    TextButton {
-                        text: "提示"
-                        shortcut: "Alt+K"
-                        visible: backend.currentMode === "spelling" && !backend.result && !page.hasRetryResult
-                        enabled: String(backend.answer || "").length === 0
-                        onClicked: {
-                            backend.hintFirstLetter()
-                            Qt.callLater(function() { answerInput.forceActiveFocus() })
+                        Text {
+                            text: String(backend.queuePosition || 0) + " / " + String(backend.queueTotal || 0)
+                            color: T.faint
+                            font.family: T.fontEN
+                            font.pixelSize: 10
+                        }
+
+                        TextButton {
+                            text: "提示"
+                            shortcut: "Alt+K"
+                            visible: backend.currentMode === "spelling" && !backend.result && !page.hasRetryResult
+                            enabled: String(backend.answer || "").length === 0
+                            onClicked: {
+                                backend.hintFirstLetter()
+                                Qt.callLater(function() { answerInput.forceActiveFocus() })
+                            }
+                        }
+                        TextButton {
+                            text: "显示答案"
+                            shortcut: "Alt+A"
+                            visible: backend.hasSession && !backend.result && !backend.retrying && !page.hasRetryResult
+                            onClicked: backend.revealAnswer()
+                        }
+                        TextButton {
+                            text: "重新拼写"
+                            shortcut: "Alt+R"
+                            visible: backend.result !== null && backend.result !== undefined
+                                     && backend.result.revealed === true && backend.currentMode !== "choice"
+                            onClicked: {
+                                backend.startRetry()
+                                Qt.callLater(function() { answerInput.forceActiveFocus() })
+                            }
+                        }
+                        TextButton {
+                            text: "上一词"
+                            shortcut: "←"
+                            visible: backend.canGoPrevious
+                            onClicked: {
+                                backend.previous()
+                                page.focusAnswer()
+                            }
+                        }
+                        TextButton {
+                            text: "跳过"
+                            shortcut: "Alt+S"
+                            visible: !backend.retrying && !page.hasRetryResult
+                            onClicked: backend.skip()
+                        }
+                        TextButton {
+                            text: "退出"
+                            shortcut: "Esc"
+                            visible: backend.hasSession
+                            onClicked: backend.exitPractice()
                         }
                     }
-                    TextButton {
-                        text: "显示答案"
-                        shortcut: "Alt+A"
-                        visible: backend.hasSession && !backend.result && !backend.retrying && !page.hasRetryResult
-                        onClicked: backend.revealAnswer()
-                    }
-                    TextButton {
-                        text: "重新拼写"
-                        shortcut: "Alt+R"
-                        visible: backend.result !== null && backend.result !== undefined
-                                 && backend.result.revealed === true && backend.currentMode !== "choice"
-                        onClicked: {
-                            backend.startRetry()
-                            Qt.callLater(function() { answerInput.forceActiveFocus() })
-                        }
-                    }
-                    TextButton {
-                        text: "上一词"
-                        shortcut: "←"
-                        visible: backend.canGoPrevious
-                        onClicked: {
-                            backend.previous()
-                            page.focusAnswer()
-                        }
-                    }
-                    TextButton {
-                        text: "全屏专注"
-                        shortcut: "F11"
-                        visible: backend.currentMode === "spelling"
-                        onClicked: page.requestImmersive()
-                    }
-                    TextButton {
-                        text: "跳过"
-                        shortcut: "Alt+S"
-                        visible: !backend.retrying && !page.hasRetryResult
-                        onClicked: backend.skip()
-                    }
-                    TextButton {
-                        text: "退出"
-                        shortcut: "Esc"
-                        visible: backend.hasSession
-                        onClicked: backend.exitPractice()
-                    }
+                }
+
+                AccentBar {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 2
+                    value: Number(backend.queueTotal || 0) > 0
+                           ? Number(backend.queuePosition || 0) / Number(backend.queueTotal)
+                           : 0
                 }
 
                 Item { Layout.fillHeight: true }
@@ -961,6 +983,54 @@ Item {
                 }
 
                 Item { Layout.fillHeight: true }
+
+                Rectangle {
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 58
+                    radius: 10
+                    color: T.white
+                    border.width: 1
+                    border.color: T.line
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 18
+                        anchors.rightMargin: 18
+                        spacing: 0
+
+                        Repeater {
+                            model: [
+                                { label: "时间", value: page.durationText(backend.sessionElapsed) },
+                                { label: "输入数", value: String(backend.sessionTyped) },
+                                { label: "WPM", value: String(backend.sessionWpm) },
+                                { label: "正确数", value: String(backend.sessionRight) },
+                                { label: "正确率", value: String(backend.sessionAccuracy) + "%" }
+                            ]
+                            delegate: ColumnLayout {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                spacing: 1
+                                Item { Layout.fillHeight: true }
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: String(modelData.value)
+                                    color: T.ink
+                                    font.family: T.fontEN
+                                    font.pixelSize: 16
+                                    font.bold: true
+                                }
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: String(modelData.label)
+                                    color: T.faint
+                                    font.family: T.fontCN
+                                    font.pixelSize: 9
+                                }
+                                Item { Layout.fillHeight: true }
+                            }
+                        }
+                    }
+                }
             }
         }
     }

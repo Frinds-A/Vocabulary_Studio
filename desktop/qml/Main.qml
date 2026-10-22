@@ -753,6 +753,7 @@ ApplicationWindow {
             Rectangle {
                 Layout.preferredWidth: 264
                 Layout.fillHeight: true
+                visible: backend.page !== "practice" || !backend.hasSession
                 color: T.sidebar
                 border.width: 1
                 border.color: T.line

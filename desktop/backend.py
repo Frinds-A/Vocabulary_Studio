@@ -655,6 +655,18 @@ class StudyBackend(QObject):
     def selectedDeckId(self):
         return self._state["selectedDeckId"]
 
+    @Property(str, notify=stateChanged)
+    def selectedDeckName(self):
+        deck = self._selected_deck()
+        return str(deck.get("name", "")) if deck else ""
+
+    @Property(int, notify=stateChanged)
+    def sessionChapter(self):
+        session = self._state.get("session") or {}
+        if session.get("kind") == "chapter":
+            return _safe_int(session.get("chapterIndex"), 0, 0, 100000)
+        return -1
+
     @Property("QVariantList", notify=stateChanged)
     def selectedDeckIds(self):
         return list(self._state.get("selectedDeckIds", []))
@@ -994,6 +1006,11 @@ class StudyBackend(QObject):
         done = _safe_int(session.get("completed"), 0, 0, 100000)
         right = _safe_int(session.get("right"), 0, 0, 100000)
         return int(round(right * 100.0 / done)) if done else 0
+
+    @Property(int, notify=stateChanged)
+    def sessionTyped(self):
+        session = self._state.get("session") or {}
+        return _safe_int(session.get("typedLetters"), 0, 0, 10_000_000)
 
     @Property(int, notify=stateChanged)
     def sessionElapsed(self):
