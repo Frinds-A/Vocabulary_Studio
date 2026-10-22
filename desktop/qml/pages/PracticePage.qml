@@ -959,6 +959,8 @@ Item {
                             Layout.alignment: Qt.AlignHCenter
                             visible: backend.retrying && String(backend.revealRetryHint || "").length === 0
                             text: "忘记了"
+                            shortcut: backend.forgotShortcut
+                            focusPolicy: Qt.NoFocus
                             onClicked: backend.forgotAnswer()
                         }
                     }
