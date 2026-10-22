@@ -822,7 +822,8 @@ class StudyBackend(QObject):
     @Property(int, notify=stateChanged)
     def todayNew(self):
         if "today_new" not in self._cache:
-            self._cache["today_new"] = self._today_new(self._selected_entries())
+            # Daily total across every wordbook, not just the selected deck.
+            self._cache["today_new"] = self._today_new()
         return self._cache["today_new"]
 
     @Property(int, notify=goalsChanged)
