@@ -1,0 +1,13 @@
+module md3.Core
+singleton Theme 1.0 Styles/Theme.qml
+Button 1.0 Controls/Button.qml
+Card 1.0 Controls/Card.qml
+Chip 1.0 Controls/Chip.qml
+Switch 1.0 Controls/Switch.qml
+LinearProgress 1.0 Controls/LinearProgress.qml
+CircularProgress 1.0 Controls/CircularProgress.qml
+Ripple 1.0 Controls/Ripple.qml
+IconButton 1.0 Controls/IconButton.qml
+TextField 1.0 Controls/TextField.qml
+SegmentedButton 1.0 Controls/SegmentedButton.qml
+ScrollBar 1.0 Controls/ScrollBar.qml

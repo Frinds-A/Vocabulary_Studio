@@ -1,0 +1,10 @@
+﻿build/
+dist/
+__pycache__/
+*.pyc
+.cache/
+*.log
+*.exe
+*-分享包.zip
+英语单词/
+.gh_token.txt
