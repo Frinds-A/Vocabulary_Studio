@@ -281,6 +281,39 @@ ApplicationWindow {
         enabled: backend.page === "practice" && backend.hasSession && backend.currentMode === "choice" && !backend.result && !root.modalOpen
         onActivated: root.handleChoice(3)
     }
+    Shortcut {
+        sequence: "1"
+        enabled: !root.modalOpen && (backend.page === "home"
+                  || (backend.page === "practice" && backend.hasSession && backend.currentMode !== "choice"))
+        onActivated: backend.setMode("spelling")
+    }
+    Shortcut {
+        sequence: "2"
+        enabled: !root.modalOpen && (backend.page === "home"
+                  || (backend.page === "practice" && backend.hasSession && backend.currentMode !== "choice"))
+        onActivated: backend.setMode("choice")
+    }
+    Shortcut {
+        sequence: "3"
+        enabled: !root.modalOpen && (backend.page === "home"
+                  || (backend.page === "practice" && backend.hasSession && backend.currentMode !== "choice"))
+        onActivated: backend.setMode("dictation")
+    }
+    Shortcut {
+        sequence: "Ctrl+1"
+        enabled: !root.modalOpen && backend.page === "practice" && backend.hasSession
+        onActivated: backend.setMode("spelling")
+    }
+    Shortcut {
+        sequence: "Ctrl+2"
+        enabled: !root.modalOpen && backend.page === "practice" && backend.hasSession
+        onActivated: backend.setMode("choice")
+    }
+    Shortcut {
+        sequence: "Ctrl+3"
+        enabled: !root.modalOpen && backend.page === "practice" && backend.hasSession
+        onActivated: backend.setMode("dictation")
+    }
     Shortcut { sequence: "Ctrl+H"; enabled: !root.modalOpen; onActivated: backend.openPage("home") }
     Shortcut { sequence: "Ctrl+L"; enabled: !root.modalOpen; onActivated: backend.openPage("library") }
     Shortcut { sequence: "Ctrl+P"; enabled: !root.modalOpen; onActivated: root.openPracticeShortcut() }
