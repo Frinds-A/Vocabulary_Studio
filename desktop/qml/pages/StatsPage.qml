@@ -283,7 +283,7 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 410
+                Layout.preferredHeight: Math.max(250, 150 + Math.max(1, (backend.statsDecks || []).length) * 50)
                 radius: 12
                 color: T.white
                 border.width: 1
@@ -428,7 +428,7 @@ Item {
                 }
                 Item { Layout.fillWidth: true }
                 Text {
-                    text: "5 本"
+                    text: String((backend.statsDeckIds || []).length) + " / 5"
                     color: T.muted
                     font.family: T.fontCN
                     font.pixelSize: 11
@@ -449,7 +449,7 @@ Item {
 
             Text {
                 Layout.fillWidth: true
-                text: "点击新词书会替换最早选择的一本"
+                text: "点击选中，再次点击取消；最多 5 本"
                 color: T.faint
                 font.family: T.fontCN
                 font.pixelSize: 11
@@ -496,10 +496,7 @@ Item {
                     color: selected ? T.neutralPale : (statsHover.hovered ? T.neutralPale : "transparent")
                     HoverHandler { id: statsHover; cursorShape: Qt.PointingHandCursor }
                     TapHandler {
-                        onTapped: {
-                            backend.selectStatsDeck(String(modelData.id))
-                            statsDeckPicker.close()
-                        }
+                        onTapped: backend.selectStatsDeck(String(modelData.id))
                     }
                     Text {
                         anchors.left: parent.left
