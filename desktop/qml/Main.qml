@@ -1156,6 +1156,11 @@ ApplicationWindow {
         z: 300
         visible: root.welcomeOpen
         onClosed: root.welcomeOpen = false
+        onGuideRequested: {
+            root.welcomeOpen = false
+            root.settingsOpen = true
+            settingsDialog.openGuide(0)
+        }
     }
     // -----------------------------------------------------------------
     Rectangle {
