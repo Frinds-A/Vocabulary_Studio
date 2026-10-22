@@ -170,6 +170,12 @@ Item {
                     onClicked: updater.downloadAndInstall()
                 }
 
+                TextButton {
+                    text: "打开下载页"
+                    visible: updater.state === "error"
+                    onClicked: Qt.openUrlExternally(updater.releasePage)
+                }
+
                 AppButton {
                     text: "关闭"
                     shortcut: "Enter"
