@@ -177,6 +177,7 @@ class Updater(QObject):
     # ---------------------------------------------------------------- network
     def _fetch_release(self):
         last_error = None
+        best = None
         headers = {
             "User-Agent": "Cixu-Vocabulary-Studio-Updater",
             "Accept": "application/vnd.github+json",
@@ -188,9 +189,14 @@ class Updater(QObject):
                     with _url_opener(use_proxy).open(request, timeout=7) as response:
                         payload = json.loads(response.read().decode("utf-8"))
                     if isinstance(payload, dict) and (payload.get("tag_name") or payload.get("name")):
-                        return payload
+                        tag = str(payload.get("tag_name") or payload.get("name") or "")
+                        version = tag[1:] if tag.lower().startswith("v") else tag
+                        if best is None or _version_key(version) > _version_key(str(best.get("tag_name") or best.get("name") or "").lstrip("vV")):
+                            best = payload
                 except Exception as exc:  # noqa: BLE001 - try the next route
                     last_error = exc
+        if best is not None:
+            return best
         raise last_error or RuntimeError("no update route")
 
     def _check_worker(self, serial: int):
