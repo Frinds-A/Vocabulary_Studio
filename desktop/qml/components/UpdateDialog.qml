@@ -11,9 +11,14 @@ Item {
     visible: false
     z: 320
 
+    readonly property bool hasNotes: updater.state === "available"
+    readonly property bool busy: updater.state === "downloading"
+                                || updater.state === "ready"
+                                || updater.state === "installing"
+
     Shortcut {
         sequence: "Escape"
-        enabled: dialog.visible && updater.state !== "installing"
+        enabled: dialog.visible && updater.state !== "installing" && !dialog.busy
         onActivated: dialog.closed()
     }
 
@@ -25,46 +30,43 @@ Item {
 
     Rectangle {
         id: panel
-        width: Math.min(parent.width - 72, 560)
-        height: Math.min(parent.height - 72, 548)
+        width: Math.min(parent.width - 72, 500)
+        height: Math.min(parent.height - 80, dialog.hasNotes ? 500 : (dialog.busy ? 300 : 230))
         anchors.centerIn: parent
-        radius: 16
+        radius: 14
         color: T.white
         border.width: 1
         border.color: T.lineStrong
         antialiasing: true
+        Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 28
-            spacing: 12
+            anchors.leftMargin: 26
+            anchors.rightMargin: 26
+            anchors.topMargin: 24
+            anchors.bottomMargin: 22
+            spacing: 10
 
-            RowLayout {
+            ColumnLayout {
                 Layout.fillWidth: true
-                ColumnLayout {
-                    spacing: 4
-                    Text {
-                        text: updater.state === "latest" ? "已是最新版本"
-                              : (updater.state === "checking" ? "正在检查更新" : "发现新版本")
-                        color: T.ink
-                        font.family: T.fontCN
-                        font.pixelSize: 22
-                        font.bold: true
-                    }
-                    Text {
-                        visible: updater.latestVersion.length > 0
-                        text: "当前 v" + updater.currentVersion + "  →  最新 v" + updater.latestVersion
-                        color: T.muted
-                        font.family: T.fontCN
-                        font.pixelSize: 11
-                    }
+                spacing: 3
+                Text {
+                    Layout.fillWidth: true
+                    text: updater.state === "latest" ? "已是最新版本"
+                          : (updater.state === "checking" ? "正在检查更新" : "发现新版本")
+                    color: T.ink
+                    font.family: T.fontCN
+                    font.pixelSize: 20
+                    font.bold: true
                 }
-                Item { Layout.fillWidth: true }
-                TextButton {
-                    text: "×"
-                    shortcut: "Esc"
-                    enabled: updater.state !== "installing"
-                    onClicked: dialog.closed()
+                Text {
+                    Layout.fillWidth: true
+                    visible: updater.latestVersion.length > 0
+                    text: "当前 v" + updater.currentVersion + "  →  最新 v" + updater.latestVersion
+                    color: T.muted
+                    font.family: T.fontCN
+                    font.pixelSize: 11
                 }
             }
 
@@ -76,6 +78,7 @@ Item {
 
             Text {
                 Layout.fillWidth: true
+                visible: updater.state !== "latest"
                 text: updater.statusText
                 color: updater.state === "error" ? T.red : T.inkSoft
                 font.family: T.fontCN
@@ -83,28 +86,18 @@ Item {
                 wrapMode: Text.WordWrap
             }
 
-            Text {
-                visible: updater.state === "available" || updater.state === "downloading"
-                text: "更新内容"
-                color: T.faint
-                font.family: T.fontCN
-                font.pixelSize: 10
-                font.letterSpacing: 1.2
-            }
-
             Rectangle {
                 Layout.fillWidth: true
-                Layout.fillHeight: true
-                Layout.minimumHeight: 140
-                visible: updater.state === "available" || updater.state === "downloading"
-                radius: 10
+                Layout.preferredHeight: dialog.hasNotes ? 170 : 0
+                visible: dialog.hasNotes
+                radius: 9
                 color: T.neutralPale
                 border.width: 1
                 border.color: T.line
 
                 Flickable {
                     anchors.fill: parent
-                    anchors.margins: 14
+                    anchors.margins: 12
                     clip: true
                     contentWidth: width
                     contentHeight: notes.implicitHeight
@@ -119,54 +112,69 @@ Item {
                               : "本次更新包含问题修复与体验改进。"
                         color: T.inkSoft
                         font.family: T.fontCN
-                        font.pixelSize: 12
+                        font.pixelSize: 11
                         lineHeight: 1.5
                         wrapMode: Text.WordWrap
                     }
                 }
             }
 
-            Rectangle {
+            RowLayout {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 8
-                visible: updater.state === "downloading" || updater.state === "ready"
-                         || updater.state === "installing"
-                radius: 4
-                color: T.neutralPale
+                visible: dialog.busy
+                spacing: 10
                 Rectangle {
-                    width: parent.width * Math.max(0, Math.min(100, updater.progress)) / 100
-                    height: parent.height
-                    radius: 4
-                    color: T.ink
-                    Behavior on width { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: 6
+                    radius: 3
+                    color: T.neutralPale
+                    Rectangle {
+                        width: parent.width * Math.max(0, Math.min(100, updater.progress)) / 100
+                        height: parent.height
+                        radius: 3
+                        color: T.ink
+                        Behavior on width { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+                    }
+                }
+                Text {
+                    text: String(Math.max(0, Math.min(100, updater.progress))) + "%"
+                    color: T.muted
+                    font.family: T.fontEN
+                    font.pixelSize: 10
                 }
             }
 
+            Item { Layout.fillHeight: true }
+
             RowLayout {
                 Layout.fillWidth: true
-                Layout.topMargin: 4
+                spacing: 10
+
                 Item { Layout.fillWidth: true }
+
                 TextButton {
-                    text: updater.state === "installing" ? "正在安装…" : "稍后"
+                    text: "稍后"
                     shortcut: "Esc"
-                    enabled: updater.state !== "installing" && updater.state !== "downloading"
+                    visible: updater.state === "available"
                     onClicked: dialog.closed()
                 }
+
                 AppButton {
                     text: updater.state === "downloading" ? "正在下载…"
                           : (updater.state === "ready" || updater.state === "installing" ? "正在安装…" : "下载并安装")
                     shortcut: "Enter"
                     primary: true
+                    visible: dialog.hasNotes || dialog.busy
                     enabled: updater.state === "available" && updater.available
-                    visible: updater.state === "available" || updater.state === "downloading"
-                             || updater.state === "ready" || updater.state === "installing"
                     onClicked: updater.downloadAndInstall()
                 }
+
                 AppButton {
                     text: "关闭"
                     shortcut: "Enter"
                     primary: true
                     visible: updater.state === "latest" || updater.state === "error"
+                             || updater.state === "checking"
                     onClicked: dialog.closed()
                 }
             }
