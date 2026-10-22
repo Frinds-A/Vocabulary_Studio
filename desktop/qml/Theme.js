@@ -80,6 +80,8 @@ function deckTheme(deck) {
 }
 
 function deckShort(deck) {
+    var short = String((deck && deck.short) || "")
+    if (short) return short
     var exam = String((deck && deck.exam) || "")
     if (exam === "cet4") return "CET-4"
     if (exam === "cet6") return "CET-6"

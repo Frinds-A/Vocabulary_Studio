@@ -95,14 +95,19 @@ Item {
                 color: T.line
             }
 
-            Flickable {
+            Item {
                 Layout.fillWidth: true
                 Layout.fillHeight: true
-                clip: true
-                contentWidth: width
-                contentHeight: body.implicitHeight
-                boundsBehavior: Flickable.StopAtBounds
-                ScrollBar.vertical: AppScrollBar { policy: ScrollBar.AsNeeded }
+                Layout.minimumHeight: 0
+                Layout.preferredHeight: 1
+
+                Flickable {
+                    anchors.fill: parent
+                    clip: true
+                    contentWidth: width
+                    contentHeight: body.implicitHeight
+                    boundsBehavior: Flickable.StopAtBounds
+                    ScrollBar.vertical: AppScrollBar { policy: ScrollBar.AsNeeded }
 
                 ColumnLayout {
                     id: body
@@ -192,6 +197,7 @@ Item {
                         horizontalAlignment: Text.AlignRight
                     }
                 }
+            }
             }
 
             RowLayout {

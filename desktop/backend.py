@@ -24,6 +24,11 @@ try:
 except ImportError:  # pragma: no cover
     from version import APP_VERSION
 
+try:
+    from .qwerty_decks import QWERTY_DECK_META, QWERTY_DEFAULT_DAILY_GOALS
+except ImportError:  # pragma: no cover
+    from qwerty_decks import QWERTY_DECK_META, QWERTY_DEFAULT_DAILY_GOALS
+
 
 REVIEW_INTERVALS = (24 * 60 * 60_000, 2 * 24 * 60 * 60_000,
                     4 * 24 * 60 * 60_000, 7 * 24 * 60 * 60_000,
@@ -48,6 +53,8 @@ DECK_META = {
     "postgradWords": {"name": "考研核心单词（GPT）", "exam": "postgrad", "type": "words", "short": "NPEE", "tag": "GPT整理", "color": "blue", "description": "GPT 搜集整理的考研核心词。"},
     "postgradPhrases": {"name": "考研常用词组（GPT）", "exam": "postgrad", "type": "phrases", "short": "NPEE", "tag": "GPT整理", "color": "rose", "description": "GPT 搜集整理的考研常用词组。"},
 }
+DECK_META.update(QWERTY_DECK_META)
+DEFAULT_DAILY_GOALS.update(QWERTY_DEFAULT_DAILY_GOALS)
 
 
 def _now_ms() -> int:

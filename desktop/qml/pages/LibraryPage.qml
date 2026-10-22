@@ -109,7 +109,7 @@ Item {
                 spacing: 9
 
                 Chip {
-                    label: "全部词书"
+                    label: "全部"
                     selected: page.examFilter === "all" && page.typeFilter === "all"
                     onClicked: {
                         page.examFilter = "all"
@@ -125,6 +125,31 @@ Item {
                     label: "考研"
                     selected: page.examFilter === "postgrad"
                     onClicked: page.examFilter = page.examFilter === "postgrad" ? "all" : "postgrad"
+                }
+                Chip {
+                    label: "出国"
+                    selected: page.examFilter === "abroad"
+                    onClicked: page.examFilter = page.examFilter === "abroad" ? "all" : "abroad"
+                }
+                Chip {
+                    label: "国内"
+                    selected: page.examFilter === "domestic"
+                    onClicked: page.examFilter = page.examFilter === "domestic" ? "all" : "domestic"
+                }
+                Chip {
+                    label: "通用"
+                    selected: page.examFilter === "general"
+                    onClicked: page.examFilter = page.examFilter === "general" ? "all" : "general"
+                }
+                Chip {
+                    label: "专业"
+                    selected: page.examFilter === "professional"
+                    onClicked: page.examFilter = page.examFilter === "professional" ? "all" : "professional"
+                }
+                Chip {
+                    label: "AI"
+                    selected: page.examFilter === "ai"
+                    onClicked: page.examFilter = page.examFilter === "ai" ? "all" : "ai"
                 }
                 Chip {
                     label: "单词"
