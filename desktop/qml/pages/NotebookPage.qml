@@ -230,7 +230,7 @@ Item {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: page.mode === "mastered"
                           ? "同一个单词累计拼写正确两次，就会出现在这里。"
-                          : "遇到想记的词，点一下收藏就会出现在这里。"
+                          : "遇到想记的词，点一下「生词」就会出现在这里。"
                     color: T.muted
                     font.family: T.fontCN
                     font.pixelSize: 13

@@ -5,6 +5,7 @@ from __future__ import annotations
 import base64
 import copy
 import difflib
+import hashlib
 import json
 import os
 import random
@@ -73,6 +74,11 @@ def _normalise_answer(value: Any) -> str:
     return re.sub(r"\s+", " ", text)
 
 
+def _spelling_key(value: Any) -> str:
+    """Compare spellings without requiring spaces inside phrases."""
+    return re.sub(r"\s+", "", _normalise_answer(value))
+
+
 def _spell_marks(typed: Any, expected: Any) -> list[dict[str, Any]]:
     """Per-letter comparison for a misspelled answer.
 
@@ -122,7 +128,8 @@ def _default_state() -> dict[str, Any]:
         "settings": {"autoSpeak": True, "spacedRepetition": True, "includeNotebook": False,
                      "voiceAccent": "us", "autoCheckUpdates": True,
                      "chapterMode": True, "chapterSize": 20, "studyScope": "mix",
-                     "inputSound": True, "speechRate": 0.0, "autoBackup": True,
+                     "inputSound": True, "inputSoundStyle": "click",
+                     "speechRate": 0.0, "autoBackup": True,
                      "loopSession": False,
                      "welcomeSeen": False, "welcomeVersion": ""},
         "progress": {},
@@ -130,6 +137,7 @@ def _default_state() -> dict[str, Any]:
         "studySeconds": 0,
         "notebook": [],
         "favoriteDecks": [],
+        "recentDecks": [],
         "lastChapters": {},
         "customBooks": [],
         "session": None,
@@ -164,6 +172,12 @@ class StudyBackend(QObject):
         self._cache: dict[str, Any] = {}
         self._study_pending = 0
         self._qt_voice_ready = False
+        self._speech_token = 0
+        self._audio_dir = self._state_path.parent / "audio"
+        self._audio_manager = None
+        self._audio_player = None
+        self._audio_output = None
+        self._audio_pending: set[str] = set()
         self._entries_by_id: dict[str, dict[str, Any]] = {}
         self._ids_by_word: dict[str, list[str]] = {}
         self._history: list[dict[str, Any]] = []
@@ -171,6 +185,10 @@ class StudyBackend(QObject):
         self._sanitize_deck_selection()
         self._sanitize_session()
         self._tts = None
+        self._input_sound = None
+        self._sound_pool: dict[str, list[Any]] = {}
+        self._sound_index = 0
+        self._prepare_input_sounds()
         self._emit_changed(save=False)
 
     @staticmethod
@@ -217,6 +235,8 @@ class StudyBackend(QObject):
                                       if key in saved["settings"]})
             if isinstance(saved["settings"].get("welcomeVersion"), str):
                 state["settings"]["welcomeVersion"] = saved["settings"]["welcomeVersion"]
+            if saved["settings"].get("inputSoundStyle") in {"click", "bubble"}:
+                state["settings"]["inputSoundStyle"] = saved["settings"]["inputSoundStyle"]
             if saved["settings"].get("voiceAccent") in {"us", "uk"}:
                 state["settings"]["voiceAccent"] = saved["settings"]["voiceAccent"]
             if saved["settings"].get("studyScope") in {"mix", "new", "review"}:
@@ -239,6 +259,8 @@ class StudyBackend(QObject):
             state["notebook"] = [item for item in saved["notebook"] if isinstance(item, dict) and isinstance(item.get("word"), str) and isinstance(item.get("id"), str)]
         if isinstance(saved.get("favoriteDecks"), list):
             state["favoriteDecks"] = [str(item) for item in saved["favoriteDecks"] if isinstance(item, str)]
+        if isinstance(saved.get("recentDecks"), list):
+            state["recentDecks"] = [str(item) for item in saved["recentDecks"] if isinstance(item, str)][:8]
         if isinstance(saved.get("lastChapters"), dict):
             state["lastChapters"] = {str(key): max(0, _safe_int(value, 0, 0, 100000))
                                      for key, value in saved["lastChapters"].items()
@@ -264,6 +286,7 @@ class StudyBackend(QObject):
                 "retryWrong": bool(session.get("retryWrong", False)),
                 "passes": max(1, min(2, _safe_int(session.get("passes"), 2, 1, 2))),
                 "typedLetters": max(0, _safe_int(session.get("typedLetters"), 0, 0, 10_000_000)),
+                "revealHint": str(session.get("revealHint", ""))[:200],
                 "startedAt": _safe_int(session.get("startedAt"), _now_ms(), 0, 8_640_000_000_000_000),
             }
         return state
@@ -621,6 +644,11 @@ class StudyBackend(QObject):
         return self._all_decks()
 
     @Property("QVariantList", notify=stateChanged)
+    def recentDecks(self):
+        by_id = {str(deck["id"]): deck for deck in self._all_decks()}
+        return [by_id[item] for item in self._state.get("recentDecks", []) if item in by_id][:4]
+
+    @Property("QVariantList", notify=stateChanged)
     def deckEntries(self):
         deck = self._selected_deck()
         if not deck:
@@ -826,6 +854,13 @@ class StudyBackend(QObject):
             self._cache["today_new"] = self._today_new()
         return self._cache["today_new"]
 
+    @Property(int, notify=stateChanged)
+    def todayPlanNew(self):
+        """New words learned today within the currently selected study scope."""
+        if "today_plan_new" not in self._cache:
+            self._cache["today_plan_new"] = self._today_new(self._selected_entries())
+        return self._cache["today_plan_new"]
+
     @Property(int, notify=goalsChanged)
     def dailyGoal(self):
         return sum(self._deck_goal(deck_id) for deck_id in self._state.get("selectedDeckIds", []))
@@ -890,18 +925,48 @@ class StudyBackend(QObject):
         if self._study_pending >= 20:
             self.flushStudyTime()
 
+    def _sound_asset(self, style: str) -> Path:
+        base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+        return base / "assets" / ("bubble.mp3" if style == "bubble" else "key.wav")
+
+    def _prepare_input_sounds(self) -> None:
+        try:
+            from PySide6.QtMultimedia import QSoundEffect
+        except (ImportError, RuntimeError):
+            return
+        for style, copies in (("click", 3), ("bubble", 2)):
+            path = self._sound_asset(style)
+            if not path.exists():
+                continue
+            effects = []
+            for _ in range(copies):
+                effect = QSoundEffect(self)
+                effect.setSource(QUrl.fromLocalFile(str(path)))
+                effect.setVolume(0.62)
+                effects.append(effect)
+            self._sound_pool[style] = effects
+
     @Slot()
     def playInputSound(self):
-        if not self.inputSound or os.name != "nt":
+        if not self.inputSound:
             return
-        try:
-            import winsound
-            base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
-            path = base / "assets" / "key.wav"
-            if path.exists():
+        effects = self._sound_pool.get(self.inputSoundStyle, [])
+        if effects:
+            from PySide6.QtMultimedia import QSoundEffect
+            effect = effects[self._sound_index % len(effects)]
+            self._sound_index += 1
+            if effect.status() != QSoundEffect.Error:
+                effect.play()
+                return
+        path = self._sound_asset(self.inputSoundStyle)
+        if not path.exists():
+            return
+        if os.name == "nt" and self.inputSoundStyle == "click":
+            try:
+                import winsound
                 winsound.PlaySound(str(path), winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
-        except (ImportError, OSError, RuntimeError):
-            pass
+            except (ImportError, OSError, RuntimeError):
+                pass
 
     @Slot()
     def flushStudyTime(self):
@@ -999,6 +1064,16 @@ class StudyBackend(QObject):
         self._state.setdefault("settings", {})["loopSession"] = not self.loopSession
         self._emit_changed()
         self._status("单词循环已开启" if self.loopSession else "单词循环已关闭")
+
+    @Property(str, notify=stateChanged)
+    def inputSoundStyle(self):
+        style = self._state.get("settings", {}).get("inputSoundStyle", "click")
+        return style if style in {"click", "bubble"} else "click"
+
+    @Slot(str)
+    def setInputSoundStyle(self, style: str):
+        self._state.setdefault("settings", {})["inputSoundStyle"] = "bubble" if style == "bubble" else "click"
+        self._emit_changed()
 
     @Property(float, notify=stateChanged)
     def speechRate(self):
@@ -1187,6 +1262,11 @@ class StudyBackend(QObject):
     def statusMessage(self):
         return self._status_message
 
+    @Property(str, notify=stateChanged)
+    def revealRetryHint(self):
+        session = self._state.get("session") or {}
+        return str(session.get("revealHint", ""))
+
     @Property(bool, notify=stateChanged)
     def sessionComplete(self):
         session = self._state.get("session")
@@ -1241,6 +1321,27 @@ class StudyBackend(QObject):
         return deck_id in self._state.get("selectedDeckIds", [])
 
     @Slot(int)
+    def startStudyChapter(self, index: int):
+        self._state["mode"] = "spelling"
+        self._state.setdefault("settings", {})["mode"] = "spelling"
+        deck_id = str(self._state.get("selectedDeckId", ""))
+        recents = [item for item in self._state.get("recentDecks", []) if item != deck_id]
+        if deck_id:
+            recents.insert(0, deck_id)
+        self._state["recentDecks"] = recents[:8]
+        self.startChapter(index)
+
+    @Slot()
+    def continueStudy(self):
+        self._state["mode"] = "spelling"
+        self._state.setdefault("settings", {})["mode"] = "spelling"
+        session = self._state.get("session")
+        if session and session.get("ids") and session.get("position", 0) < len(session["ids"]):
+            self.continueSession()
+            return
+        self.startStudyChapter(self.currentChapter)
+
+    @Slot(int)
     def startChapter(self, index: int):
         deck = self._selected_deck()
         if not deck:
@@ -1254,6 +1355,13 @@ class StudyBackend(QObject):
         count = max(1, (len(entries) + size - 1) // size)
         index = max(0, min(count - 1, int(index)))
         chunk = entries[index * size:(index + 1) * size]
+        if self.studyScope == "new":
+            chunk = [entry for entry in chunk if entry["id"] not in self._state["progress"]]
+        elif self.studyScope == "review":
+            now = _now_ms()
+            chunk = [entry for entry in chunk
+                     if isinstance(self._state["progress"].get(entry["id"]), dict)
+                     and _safe_int(self._state["progress"][entry["id"]].get("nextReviewAt"), 0, 0, 2**63 - 1) <= now]
         queue: list[dict[str, Any]] = []
         seen_words: set[str] = set()
         for entry in chunk:
@@ -1278,6 +1386,7 @@ class StudyBackend(QObject):
         self._page = "practice"
         self.answerChanged.emit()
         self._emit_changed()
+        self._speak_first_word(queue)
 
     @Slot()
     def resumeChapter(self):
@@ -1336,6 +1445,7 @@ class StudyBackend(QObject):
         self._page = "practice"
         self.answerChanged.emit()
         self._emit_changed()
+        self._speak_first_word(queue)
         if not queue:
             self._status("今日计划已完成，继续保持")
 
@@ -1378,6 +1488,7 @@ class StudyBackend(QObject):
         self._page = "practice"
         self.answerChanged.emit()
         self._emit_changed()
+        self._speak_first_word(queue)
 
     @Slot()
     def startRandom(self):
@@ -1414,6 +1525,7 @@ class StudyBackend(QObject):
         self._page = "practice"
         self.answerChanged.emit()
         self._emit_changed()
+        self._speak_first_word(queue)
 
     @Slot()
     def resetAllProgress(self):
@@ -1507,6 +1619,9 @@ class StudyBackend(QObject):
             self._state["selectedDeckId"] = session["deckKey"]
             self._page = "practice"
             self._emit_changed()
+            current = self._session_entry()
+            if current and self.currentMode == "spelling":
+                self.speak(current.get("word", ""))
         else:
             self.startPlan("today")
 
@@ -1569,7 +1684,7 @@ class StudyBackend(QObject):
         if not _normalise_answer(session.get("answer")):
             self._clear_invalid_result()
             return
-        correct = _normalise_answer(session.get("answer")) == _normalise_answer(current["word"])
+        correct = _spelling_key(session.get("answer")) == _spelling_key(current["word"])
         self._finish_question(correct)
 
     def _clear_invalid_result(self):
@@ -1640,9 +1755,6 @@ class StudyBackend(QObject):
         self._state["attempts"] = self._state["attempts"][-10000:]
         self._update_progress(current["id"], attempt)
 
-        if not correct and not skipped:
-            self._remember_mistake(current)
-
         session["typedLetters"] = _safe_int(session.get("typedLetters"), 0, 0, 10_000_000) + \
             len(str(session.get("answer", ""))) if self.currentMode != "choice" else _safe_int(session.get("typedLetters"), 0, 0, 10_000_000)
 
@@ -1665,7 +1777,7 @@ class StudyBackend(QObject):
                 ids.insert(min(len(ids), position + 1 + 4), current_id)
 
         self._emit_changed()
-        if self._state["settings"].get("autoSpeak", True):
+        if correct or skipped or revealed or self._state["settings"].get("autoSpeak", True):
             self.speak(current["word"])
 
     def _update_progress(self, entry_id: str, attempt: dict[str, Any]) -> None:
@@ -1797,6 +1909,8 @@ class StudyBackend(QObject):
             }
             session["retrying"] = False
             session["retryWrong"] = False
+            session["revealHint"] = ""
+            self.speak(current["word"])
         else:
             # Keep the answer hidden and stay on the retry page until the
             # spelling is correct.  Wrong retries are not recorded.
@@ -1820,6 +1934,7 @@ class StudyBackend(QObject):
         session["retrying"] = False
         session["retryResult"] = None
         session["retryWrong"] = False
+        session["revealHint"] = ""
         session.pop("choices", None)
         self.answerChanged.emit()
         if session["position"] >= len(session["ids"]) and self.loopSession:
@@ -1838,7 +1953,9 @@ class StudyBackend(QObject):
             return
         session["answer"] = str(current.get("word", ""))
         self._finish_question(False, revealed=True)
-        self._status("已显示答案，下次会继续复习")
+        session["revealHint"] = str(current.get("word", ""))
+        self.startRetry()
+        self._status("已显示答案，请照着答案重新拼写一次")
 
     @Slot()
     def skip(self):
@@ -1860,9 +1977,14 @@ class StudyBackend(QObject):
             self.flushStudyTime()
         self._state["session"] = None
         self._history.clear()
-        self._page = "practice"
+        self._page = "home"
         self._emit_changed()
         self._status("已退出练习，进度已保留")
+
+    def _speak_first_word(self, entries: list[dict[str, Any]]) -> None:
+        # Dictation handles playback in QML on every newly displayed word.
+        if entries and self.currentMode == "spelling":
+            self.speak(entries[0].get("word", ""))
 
     def _remember_mistake(self, entry: dict[str, Any]) -> None:
         """Automatically keep a missed word in the notebook."""
@@ -2035,11 +2157,123 @@ class StudyBackend(QObject):
         self._page = "practice"
         self.answerChanged.emit()
         self._emit_changed()
+        self._speak_first_word(queue)
 
     @Slot(str)
     def speak(self, word: str):
         text = re.sub(r"\s+", " ", str(word or "")).strip()
         if not text or text.casefold() in {"undefined", "null", "nan"}:
+            return
+        self._speech_token += 1
+        token = self._speech_token
+        if self._tts is not None:
+            try:
+                self._tts.stop()
+            except (AttributeError, RuntimeError):
+                pass
+        if self._play_audio(text, token):
+            return
+        self._speak_system(text, token)
+
+    def _audio_path(self, text: str) -> Path:
+        key = hashlib.sha1((self.voiceAccent + ":" + text.casefold()).encode("utf-8")).hexdigest()
+        return self._audio_dir / f"{key}.mp3"
+
+    def _ensure_audio_player(self) -> bool:
+        if self._audio_player is not None:
+            return True
+        try:
+            from PySide6.QtMultimedia import QAudioOutput, QMediaPlayer
+        except (ImportError, RuntimeError):
+            return False
+        try:
+            self._audio_output = QAudioOutput(self)
+            self._audio_output.setVolume(0.92)
+            self._audio_player = QMediaPlayer(self)
+            self._audio_player.setAudioOutput(self._audio_output)
+            self._audio_player.setVolume(1.0)
+            return True
+        except (AttributeError, RuntimeError):
+            self._audio_player = None
+            self._audio_output = None
+            return False
+
+    def _play_audio_file(self, path: Path) -> bool:
+        if not self._ensure_audio_player():
+            return False
+        try:
+            self._audio_player.stop()
+            self._audio_player.setSource(QUrl.fromLocalFile(str(path)))
+            self._audio_player.play()
+            return True
+        except (AttributeError, RuntimeError):
+            return False
+
+    def _play_audio(self, text: str, token: int) -> bool:
+        path = self._audio_path(text)
+        try:
+            if path.exists() and path.stat().st_size > 800:
+                if self._play_audio_file(path):
+                    return True
+        except OSError:
+            pass
+        return self._fetch_audio(text, token)
+
+    def _fetch_audio(self, text: str, token: int) -> bool:
+        try:
+            from PySide6.QtCore import QUrl
+            from PySide6.QtNetwork import QNetworkRequest
+        except (ImportError, RuntimeError):
+            return False
+        try:
+            if self._audio_manager is None:
+                from PySide6.QtNetwork import QNetworkAccessManager
+                self._audio_manager = QNetworkAccessManager(self)
+            key = hashlib.sha1((self.voiceAccent + ":" + text.casefold()).encode("utf-8")).hexdigest()
+            if key in self._audio_pending:
+                return True
+            from urllib.parse import quote
+            accent = "1" if self.voiceAccent == "uk" else "2"
+            url = QUrl(f"https://dict.youdao.com/dictvoice?audio={quote(text, safe='')}&type={accent}")
+            request = QNetworkRequest(url)
+            request.setHeader(QNetworkRequest.KnownHeaders.UserAgentHeader,
+                              "Mozilla/5.0 (Windows NT 10.0; Win64; x64)")
+            try:
+                request.setTransferTimeout(2200)
+            except AttributeError:
+                pass
+            reply = self._audio_manager.get(request)
+            self._audio_pending.add(key)
+            reply.finished.connect(lambda: self._finish_audio(reply, text, token, key))
+            return True
+        except (AttributeError, RuntimeError):
+            return False
+
+    def _finish_audio(self, reply, text: str, token: int, key: str):
+        self._audio_pending.discard(key)
+        try:
+            if token != self._speech_token:
+                return
+            from PySide6.QtNetwork import QNetworkReply
+            if reply.error() == QNetworkReply.NetworkError.NoError:
+                data = bytes(reply.readAll())
+                if len(data) > 800:
+                    path = self._audio_path(text)
+                    try:
+                        path.parent.mkdir(parents=True, exist_ok=True)
+                        temporary = path.with_suffix(".part")
+                        temporary.write_bytes(data)
+                        temporary.replace(path)
+                        if self._play_audio_file(path):
+                            return
+                    except OSError:
+                        pass
+            self._speak_system(text, token)
+        finally:
+            reply.deleteLater()
+
+    def _speak_system(self, text: str, token: int):
+        if token != self._speech_token:
             return
         try:
             from PySide6.QtTextToSpeech import QTextToSpeech  # optional Qt module

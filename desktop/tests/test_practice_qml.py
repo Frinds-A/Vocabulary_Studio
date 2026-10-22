@@ -18,6 +18,7 @@ from PySide6.QtTest import QTest
 from PySide6.QtWidgets import QApplication
 
 from desktop.backend import StudyBackend
+from desktop.updater import Updater
 
 QQuickStyle.setStyle("Fusion")
 
@@ -39,6 +40,8 @@ class ImmersiveSpellingInteractionTests(unittest.TestCase):
 
             engine = QQmlApplicationEngine()
             engine.rootContext().setContextProperty("backend", backend)
+            engine.rootContext().setContextProperty("updater", Updater(backend, self.app))
+            engine.addImportPath(str(repo / "desktop" / "qml"))
             engine.load(QUrl.fromLocalFile(str(repo / "desktop" / "qml" / "Main.qml")))
             self.assertTrue(engine.rootObjects(), "QML app should load in offscreen mode")
             root = engine.rootObjects()[0]

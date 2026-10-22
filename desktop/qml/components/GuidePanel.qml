@@ -91,9 +91,9 @@ Item {
                     spacing: 6
                     visible: guide.current === 0
                     Text { text: "从一本词书开始"; color: T.ink; font.family: T.fontCN; font.pixelSize: 15; font.bold: true }
-                    Text { Layout.fillWidth: true; text: "词序内置 48 本词书、130,699 条词汇，按考研、出国考试、国内考试、通用词汇、专业英语、人工智能分类。在「我的词库」中可按分类筛选、搜索名称，词书右上角的星标用于收藏。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
-                    Text { Layout.fillWidth: true; text: "第一次使用，先在「我的词库」选一本单词书。需要词组时，再在设置里选一本词组书；也可以只学其中一类。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
-                    Text { Layout.fillWidth: true; text: "每天打开「今日计划」：先看到期复习，再学新词。每章默认 20 词，可以在设置里改成 10、20、30 或 50 词。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
+                    Text { Layout.fillWidth: true; text: "词序内置 48 本词书、130,699 条词汇，按考研、出国考试、国内考试、通用词汇、专业英语、人工智能分类。在「我的词库」中可按分类筛选、搜索名称，词书左上角的星标用于收藏。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
+                    Text { Layout.fillWidth: true; text: "从首页点「开始学习」，先选一本词书，再进入词书页选择章节，点「学习本章」进入拼写；点「继续学习」直接回到上次进度。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
+                    Text { Layout.fillWidth: true; text: "每章默认 20 词，可以在设置里改成 10、20、30 或 50 词。首页可选择「范围」，再进入词书选章节。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                     Text { Layout.fillWidth: true; text: "学习记录保存在本机，不需要账号，也不会上传。第一次打开会自动显示公告；在设置里可以重新查看本说明。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                 }
 
@@ -118,7 +118,7 @@ Item {
                     Text { Layout.fillWidth: true; text: "每章是一小段学习任务。完成一章后可以点「下一章」继续，或点「默写本章」把这一章的单词再听写一遍。章节大小在「设置 → 通用 → 章节练习」中调整。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                     Text { Layout.fillWidth: true; text: "答错的词会自动加入生词本，方便之后集中复习；生词本中的词可以随时移除或重新学习。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                     Text { Layout.fillWidth: true; text: "生词本是手动收藏的词；「熟词」是累计答对 2 次的词，也可以把熟词重新标为生词。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
-                    Text { Layout.fillWidth: true; text: "学习范围可以选「新词 + 复习」「只学新词」「只复习」；「随机混合」会从当前词库随机抽一章。开启「单词循环」后，本轮结束后会自动从本轮第一个词重新开始。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
+                    Text { Layout.fillWidth: true; text: "学习范围在首页右上角选择；开启「单词循环」后，本轮结束后会自动从本轮第一个词重新开始。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                 }
 
                 // 4. 复习与统计
@@ -127,7 +127,7 @@ Item {
                     spacing: 6
                     visible: guide.current === 3
                     Text { text: "复习节奏与统计"; color: T.ink; font.family: T.fontCN; font.pixelSize: 15; font.bold: true }
-                    Text { Layout.fillWidth: true; text: "到期复习按 1、2、4、7、15、30 天安排。每天先清掉「待复习」，再学新词。统计页可以看到未来 7 天的到期预测和近 30 天每天首次学习的词数。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
+                    Text { Layout.fillWidth: true; text: "到期复习按 1、2、4、7、15、30 天安排。每天先清掉「待复习」，再学新词。统计页可以看到本周学习、综合正确率和各词库掌握度。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                     Text { Layout.fillWidth: true; text: "一个词累计答对 2 次才算「已掌握」；「连续学习」按有学习记录的连续天数计算。建议每次 15–30 分钟，比一次背很多更容易坚持。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                 }
 

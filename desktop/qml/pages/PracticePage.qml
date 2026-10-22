@@ -21,6 +21,7 @@ Item {
     property real contentShift: 0
     property string lastEntryId: ""
     property string lastDictationId: ""
+    property string lastDictationMode: ""
     property bool inputHandledEnter: false
     property bool immersiveMode: false
     readonly property bool answerFocused: answerInput.activeFocus
@@ -42,6 +43,15 @@ Item {
             focusAnswer()
     }
 
+    function notebookContainsCurrent() {
+        var list = backend.notebook || []
+        var id = backend.current ? String(backend.current.id || "") : ""
+        for (var i = 0; i < list.length; ++i)
+            if (String(list[i].id) === id)
+                return true
+        return false
+    }
+
     function selectedDeck() {
         var all = backend.decks || []
         for (var i = 0; i < all.length; ++i)
@@ -50,11 +60,48 @@ Item {
         return null
     }
 
+    function scopeName() {
+        if (backend.studyScope === "new")
+            return "只学新词"
+        if (backend.studyScope === "review")
+            return "只复习"
+        return "新词 + 复习"
+    }
+
+    function openRangePicker() {
+        var point = rangePill.mapToItem(page, 0, rangePill.height + 6)
+        rangePicker.x = Math.max(20, Math.min(page.width - rangePicker.width - 20, point.x))
+        rangePicker.y = Math.max(20, Math.min(page.height - rangePicker.height - 20, point.y))
+        rangePicker.open()
+    }
+
+    function openChapterPicker() {
+        chapterPicker.open()
+    }
+
     function openDeckPicker() {
         var point = deckPill.mapToItem(page, 0, deckPill.height + 6)
         deckPicker.x = Math.max(20, Math.min(page.width - deckPicker.width - 20, point.x))
         deckPicker.y = Math.max(20, Math.min(page.height - deckPicker.height - 20, point.y))
         deckPicker.open()
+    }
+
+    function maybeSpeakDictation(force) {
+        if (backend.page !== "practice" || !backend.hasSession)
+            return
+        if (backend.currentMode !== "dictation") {
+            page.lastDictationMode = backend.currentMode
+            return
+        }
+        var id = backend.current ? String(backend.current.id || "") : ""
+        if (!id)
+            return
+        var modeChanged = page.lastDictationMode !== "dictation"
+        page.lastDictationMode = "dictation"
+        if (force || modeChanged || page.lastDictationId !== id) {
+            page.lastDictationId = id
+            Qt.callLater(function() { backend.speak(page.currentWord) })
+        }
     }
 
     function syncEntry() {
@@ -68,18 +115,15 @@ Item {
             page.contentShift = 10
             promptIn.restart()
             wordIn.restart()
-            if (id && backend.currentMode === "dictation"
-                    && (!backend.settings || backend.settings.autoSpeak !== false)) {
-                page.lastDictationId = id
-                Qt.callLater(function() { backend.speak(page.currentWord) })
-            }
         }
+        page.maybeSpeakDictation(false)
     }
 
     function enter() {
         reveal = false
         replayTimer.restart()
         syncEntry()
+        page.maybeSpeakDictation(true)
         if (backend.hasSession && backend.currentMode !== "choice")
             Qt.callLater(function() { answerInput.forceActiveFocus() })
     }
@@ -110,6 +154,7 @@ Item {
         }
         function onStateChanged() {
             page.syncEntry()
+            page.maybeSpeakDictation(false)
             if (answerInput && answerInput.text !== String(backend.answer || ""))
                 answerInput.text = String(backend.answer || "")
             if (backend.result && !page.hadResult) {
@@ -133,6 +178,12 @@ Item {
         }
     }
 
+    Rectangle {
+        anchors.fill: parent
+        z: -1
+        color: backend.hasSession ? T.canvas : "transparent"
+    }
+
     Flickable {
         id: practiceScroll
         anchors.fill: parent
@@ -147,19 +198,20 @@ Item {
             x: 40
             width: parent.width - 80
             anchors.top: parent.top
-            spacing: 14
+            spacing: 12
 
         RowLayout {
             Layout.fillWidth: true
+            Layout.topMargin: 14
             spacing: 10
-            visible: !backend.hasSession || backend.sessionComplete
+            visible: false
 
             Rectangle {
                 id: deckPill
-                implicitHeight: 38
-                implicitWidth: deckLabel.implicitWidth + 40
-                radius: 19
-                color: T.neutralPale
+                implicitHeight: 40
+                implicitWidth: deckLabel.implicitWidth + 32
+                radius: 10
+                color: T.white
                 border.width: 1
                 border.color: T.line
                 HoverHandler { cursorShape: Qt.PointingHandCursor }
@@ -169,74 +221,75 @@ Item {
                     id: deckLabel
                     anchors.centerIn: parent
                     spacing: 7
-                    Text {
-                        text: "▤"
+                    BookGlyph {
+                        width: 16
+                        height: 16
                         color: T.muted
-                        font.family: T.fontCN
-                        font.pixelSize: 14
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Text {
                         text: page.selectedDeck() ? page.selectedDeck().name : "选择词库"
                         color: T.ink
                         font.family: T.fontCN
-                        font.pixelSize: 12
+                        font.pixelSize: 13
                         font.bold: true
                         anchors.verticalCenter: parent.verticalCenter
                     }
-                    Text {
-                        text: "⌄"
+                    Chevron {
                         color: T.faint
-                        font.family: T.fontCN
-                        font.pixelSize: 14
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
             }
 
-            Text {
-                text: "范围"
-                color: T.faint
-                font.family: T.fontCN
-                font.pixelSize: 11
-            }
-            Chip {
-                label: "新词 + 复习"
-                selected: backend.studyScope === "mix"
-                onClicked: backend.setStudyScope("mix")
-            }
-            Chip {
-                label: "只学新词"
-                selected: backend.studyScope === "new"
-                onClicked: backend.setStudyScope("new")
-            }
-            Chip {
-                label: "只复习"
-                selected: backend.studyScope === "review"
-                onClicked: backend.setStudyScope("review")
-            }
-            Text {
-                text: "每章 " + String(backend.chapterSize) + " 词"
-                color: T.faint
-                font.family: T.fontCN
-                font.pixelSize: 11
-                visible: backend.chapterMode
+            Rectangle {
+                id: rangePill
+                implicitHeight: 40
+                implicitWidth: rangeLabel.implicitWidth + 30
+                radius: 10
+                color: T.white
+                border.width: 1
+                border.color: T.line
+                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                TapHandler { onTapped: page.openRangePicker() }
+
+                Row {
+                    id: rangeLabel
+                    anchors.centerIn: parent
+                    spacing: 6
+                    Text {
+                        text: "范围"
+                        color: T.inkSoft
+                        font.family: T.fontCN
+                        font.pixelSize: 13
+                        font.bold: true
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Text {
+                        text: page.scopeName()
+                        color: T.ink
+                        font.family: T.fontCN
+                        font.pixelSize: 13
+                        font.bold: true
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                    Chevron {
+                        color: T.faint
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
             }
             Item { Layout.fillWidth: true }
-            TextButton {
-                text: "随机混合"
-                onClicked: backend.startRandom()
-            }
         }
 
         RowLayout {
             Layout.fillWidth: true
             spacing: 14
-            visible: !backend.hasSession || backend.sessionComplete
+            visible: false
 
             ModeCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 104
+                Layout.preferredHeight: 96
                 mode: "spelling"
                 title: "拼写练习"
                 subtitle: "看中文，写出英文"
@@ -247,7 +300,7 @@ Item {
             }
             ModeCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 104
+                Layout.preferredHeight: 96
                 mode: "choice"
                 title: "选择题"
                 subtitle: "看英文，选择正确的中文释义"
@@ -258,7 +311,7 @@ Item {
             }
             ModeCard {
                 Layout.fillWidth: true
-                Layout.preferredHeight: 104
+                Layout.preferredHeight: 96
                 mode: "dictation"
                 title: "听音拼写"
                 subtitle: "听发音，写出单词或词组"
@@ -277,7 +330,7 @@ Item {
             readonly property bool activeSession: backend.hasSession && !backend.sessionComplete
             Layout.fillWidth: true
             Layout.preferredHeight: activeSession ? Math.max(600, practiceScroll.height - 24)
-                                                   : (backend.hasSession ? 620 : 340)
+                                                   : (backend.hasSession ? 620 : Math.max(320, practiceScroll.height - 190))
             radius: activeSession ? 0 : 12
             color: activeSession ? T.canvas : T.white
             border.width: activeSession ? 0 : 1
@@ -461,15 +514,13 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 54
-                    radius: 10
-                    color: T.white
-                    border.width: 1
-                    border.color: T.line
+                    color: "transparent"
+                    border.width: 0
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 14
-                        anchors.rightMargin: 12
+                        anchors.leftMargin: 2
+                        anchors.rightMargin: 2
                         spacing: 8
 
                         Text {
@@ -484,30 +535,10 @@ Item {
                         Rectangle { width: 1; height: 18; color: T.line }
                         TextButton {
                             text: backend.sessionChapter >= 0
-                                  ? "第 " + String(backend.sessionChapter + 1) + " 章" : "今日计划"
+                                  ? "第 " + String(backend.sessionChapter + 1) + " 章" : ""
                             visible: backend.sessionChapter >= 0
                             onClicked: chapterPicker.open()
                         }
-                        Text {
-                            visible: backend.sessionChapter < 0
-                            text: "今日计划"
-                            color: T.inkSoft
-                            font.family: T.fontCN
-                            font.pixelSize: 12
-                        }
-                        TextButton {
-                            visible: backend.currentMode !== "choice"
-                            text: backend.currentMode === "dictation" ? "切回拼写" : "默写"
-                            onClicked: backend.setMode(backend.currentMode === "dictation" ? "spelling" : "dictation")
-                        }
-                        Text {
-                            visible: backend.currentMode === "choice"
-                            text: "选择释义"
-                            color: T.faint
-                            font.family: T.fontCN
-                            font.pixelSize: 11
-                        }
-
                         OccurrenceBadge {
                             occurrence: backend.currentOccurrence
                             Layout.alignment: Qt.AlignVCenter
@@ -516,14 +547,23 @@ Item {
                         Item { Layout.fillWidth: true }
 
                         Text {
-                            text: String(backend.queuePosition || 0) + " / " + String(backend.queueTotal || 0)
+                            text: "QUESTION " + String(backend.queuePosition || 0) + " / " + String(backend.queueTotal || 0)
                             color: T.faint
                             font.family: T.fontEN
                             font.pixelSize: 10
+                            font.letterSpacing: 1.4
+                        }
+
+                        AccentBar {
+                            Layout.preferredWidth: 120
+                            Layout.preferredHeight: 5
+                            value: Number(backend.queueTotal || 0) > 0
+                                   ? Number(backend.queuePosition || 0) / Number(backend.queueTotal)
+                                   : 0
                         }
 
                         TextButton {
-                            text: backend.loopSession ? "循环中" : "单词循环"
+                            text: backend.loopSession ? "循环中" : "循环"
                             contentColor: backend.loopSession ? T.ink : T.muted
                             onClicked: backend.toggleLoop()
                         }
@@ -535,7 +575,33 @@ Item {
                             text: "发音"
                             onClicked: backend.speak(page.currentWord)
                         }
-
+                        TextButton {
+                            text: backend.currentMode === "dictation" ? "切回拼写" : "默写"
+                            visible: backend.currentMode !== "choice"
+                            onClicked: backend.setMode(backend.currentMode === "dictation" ? "spelling" : "dictation")
+                        }
+                        Text {
+                            visible: backend.currentMode === "choice"
+                            text: "选择释义"
+                            color: T.faint
+                            font.family: T.fontCN
+                            font.pixelSize: 11
+                        }
+                        TextButton {
+                            text: "跳过"
+                            shortcut: "Alt+S"
+                            visible: !backend.retrying && !page.hasRetryResult
+                            onClicked: backend.skip()
+                        }
+                        TextButton {
+                            text: "上一词"
+                            shortcut: "←"
+                            visible: backend.canGoPrevious
+                            onClicked: {
+                                backend.previous()
+                                page.focusAnswer()
+                            }
+                        }
                         TextButton {
                             text: "提示"
                             shortcut: "Alt+K"
@@ -553,45 +619,28 @@ Item {
                             onClicked: backend.revealAnswer()
                         }
                         TextButton {
-                            text: "重新拼写"
-                            shortcut: "Alt+R"
+                            text: "下一题"
+                            shortcut: "Enter"
                             visible: backend.result !== null && backend.result !== undefined
-                                     && backend.result.revealed === true && backend.currentMode !== "choice"
-                            onClicked: {
-                                backend.startRetry()
-                                Qt.callLater(function() { answerInput.forceActiveFocus() })
-                            }
+                                     && backend.result.revealed === true
+                            onClicked: backend.next()
                         }
                         TextButton {
-                            text: "上一词"
-                            shortcut: "←"
-                            visible: backend.canGoPrevious
+                            text: page.notebookContainsCurrent() ? "✓ 已收录" : "生词"
+                            shortcut: "Ctrl+D"
+                            contentColor: page.notebookContainsCurrent() ? T.green : T.ink
                             onClicked: {
-                                backend.previous()
+                                backend.toggleNotebook()
                                 page.focusAnswer()
                             }
                         }
                         TextButton {
-                            text: "跳过"
-                            shortcut: "Alt+S"
-                            visible: !backend.retrying && !page.hasRetryResult
-                            onClicked: backend.skip()
-                        }
-                        TextButton {
-                            text: "退出"
+                            text: "×"
                             shortcut: "Esc"
                             visible: backend.hasSession
                             onClicked: backend.exitPractice()
                         }
                     }
-                }
-
-                AccentBar {
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 2
-                    value: Number(backend.queueTotal || 0) > 0
-                           ? Number(backend.queuePosition || 0) / Number(backend.queueTotal)
-                           : 0
                 }
 
                 Item { Layout.fillHeight: true }
@@ -782,11 +831,21 @@ Item {
                             visible: backend.retrying
                             Text {
                                 Layout.alignment: Qt.AlignHCenter
-                                text: backend.retryWrong ? "再试一次" : "重新默写一次"
+                                text: backend.retryWrong ? "再试一次"
+                                      : (String(backend.revealRetryHint || "").length > 0
+                                         ? "照着答案重新拼写一次" : "重新默写一次")
                                 color: backend.retryWrong ? T.red : T.ink
                                 font.family: T.fontCN
                                 font.pixelSize: 18
                                 font.bold: true
+                            }
+                            Text {
+                                Layout.alignment: Qt.AlignHCenter
+                                visible: String(backend.revealRetryHint || "").length > 0
+                                text: "正确拼写  " + String(backend.revealRetryHint || "")
+                                color: T.inkSoft
+                                font.family: T.fontCN
+                                font.pixelSize: 14
                             }
                         }
 
@@ -811,11 +870,22 @@ Item {
                                         readonly property bool isLetter: T.isLetterAt(practiceSlots.word, index)
                                         readonly property int slotNumber: T.slotIndexAt(practiceSlots.word, index)
                                         readonly property string typed: String(backend.answer || "")
+                                        readonly property bool revealedResult: backend.result !== null
+                                                                            && backend.result !== undefined
+                                                                            && backend.result.revealed === true
                                         readonly property var answerMark: (backend.result && backend.result.answerMarks
                                                                            && slotNumber < backend.result.answerMarks.length)
                                                                           ? backend.result.answerMarks[slotNumber] : null
                                         readonly property bool wrongLetter: answerMark !== null
                                                                             && answerMark.wrong === true
+                                        readonly property bool wrongResult: backend.result !== null
+                                                                            && backend.result !== undefined
+                                                                            && backend.result.correct === false
+                                                                            && backend.result.skipped !== true
+                                                                            && !revealedResult
+                                        readonly property bool slotWrong: wrongResult && isLetter
+                                                                         && (slotNumber >= typed.length
+                                                                             || typed.charAt(slotNumber).toLowerCase() !== ch.toLowerCase())
                                         readonly property bool isCurrent: isLetter && !backend.result
                                                                          && slotNumber === typed.length
                                         width: isLetter ? practiceSlots.slotWidth : (ch === " " ? 12 : 16)
@@ -835,7 +905,7 @@ Item {
                                         }
 
                                         Rectangle {
-                                            visible: parent.wrongLetter
+                                            visible: parent.slotWrong
                                             anchors.horizontalCenter: parent.horizontalCenter
                                             anchors.bottom: practiceDash.top
                                             anchors.bottomMargin: 4
@@ -843,18 +913,23 @@ Item {
                                             height: 40
                                             radius: 7
                                             color: T.mistakePale
+                                            opacity: 0.82
                                         }
 
                                         Text {
                                             anchors.bottom: practiceDash.top
                                             anchors.bottomMargin: 8
                                             anchors.horizontalCenter: parent.horizontalCenter
-                                            text: parent.isLetter && parent.slotNumber < parent.typed.length
-                                                  ? parent.typed.charAt(parent.slotNumber) : ""
-                                            color: backend.result
-                                                   ? (backend.result.correct ? T.green
-                                                      : (wrongLetter ? T.mistakeInk : T.muted))
-                                                   : T.ink
+                                            text: parent.isLetter
+                                                  ? (parent.revealedResult ? parent.ch
+                                                     : (parent.slotNumber < parent.typed.length
+                                                        ? parent.typed.charAt(parent.slotNumber) : ""))
+                                                  : ""
+                                            color: parent.revealedResult ? T.rose
+                                                   : (backend.result
+                                                      ? (backend.result.correct ? T.green
+                                                         : (wrongLetter ? T.mistakeInk : T.muted))
+                                                      : T.ink)
                                             font.family: T.fontEN
                                             font.pixelSize: 34
                                             font.bold: true
@@ -882,7 +957,7 @@ Item {
                         }
                         TextButton {
                             Layout.alignment: Qt.AlignHCenter
-                            visible: backend.retrying
+                            visible: backend.retrying && String(backend.revealRetryHint || "").length === 0
                             text: "忘记了"
                             onClicked: backend.forgotAnswer()
                         }
@@ -966,7 +1041,6 @@ Item {
                         Layout.alignment: Qt.AlignHCenter
                         onNextRequested: backend.next()
                         onRetryRequested: backend.startRetry()
-                        onCollectRequested: backend.toggleNotebook()
                     }
                 }
 
@@ -975,46 +1049,45 @@ Item {
                 Rectangle {
                     Layout.fillWidth: true
                     Layout.preferredHeight: 58
-                    radius: 10
-                    color: T.white
-                    border.width: 1
-                    border.color: T.line
+                    color: "transparent"
+                    border.width: 0
 
-                    RowLayout {
+                    Row {
+                        id: statsRow
                         anchors.fill: parent
-                        anchors.leftMargin: 18
-                        anchors.rightMargin: 18
-                        spacing: 0
+                        anchors.leftMargin: 2
+                        anchors.rightMargin: 2
 
                         Repeater {
                             model: [
-                                { label: "时间", value: page.durationText(backend.sessionElapsed) },
                                 { label: "输入数", value: String(backend.sessionTyped) },
                                 { label: "WPM", value: String(backend.sessionWpm) },
                                 { label: "正确数", value: String(backend.sessionRight) },
                                 { label: "正确率", value: String(backend.sessionAccuracy) + "%" }
                             ]
-                            delegate: ColumnLayout {
-                                Layout.fillWidth: true
-                                Layout.fillHeight: true
-                                spacing: 1
-                                Item { Layout.fillHeight: true }
-                                Text {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    text: String(modelData.value)
-                                    color: T.ink
-                                    font.family: T.fontEN
-                                    font.pixelSize: 16
-                                    font.bold: true
+                            delegate: Item {
+                                width: statsRow.width / 4
+                                height: statsRow.height
+
+                                Column {
+                                    anchors.centerIn: parent
+                                    spacing: 1
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: String(modelData.value)
+                                        color: T.ink
+                                        font.family: T.fontEN
+                                        font.pixelSize: 16
+                                        font.bold: true
+                                    }
+                                    Text {
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        text: String(modelData.label)
+                                        color: T.faint
+                                        font.family: T.fontCN
+                                        font.pixelSize: 9
+                                    }
                                 }
-                                Text {
-                                    Layout.alignment: Qt.AlignHCenter
-                                    text: String(modelData.label)
-                                    color: T.faint
-                                    font.family: T.fontCN
-                                    font.pixelSize: 9
-                                }
-                                Item { Layout.fillHeight: true }
                             }
                         }
                     }
@@ -1054,7 +1127,7 @@ Item {
             else if (backend.retrying)
                 backend.submitRetry()
             else if (backend.result) {
-                if (!backend.result.correct && !backend.result.skipped)
+                if (!backend.result.correct && !backend.result.skipped && !backend.result.revealed)
                     backend.startRetry()
                 else
                     backend.next()
@@ -1094,6 +1167,68 @@ Item {
                     backend.next()
             }
             event.accepted = true
+        }
+    }
+
+    Popup {
+        id: rangePicker
+        parent: page
+        width: 220
+        height: 154
+        padding: 0
+        modal: false
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            radius: 10
+            color: T.white
+            border.width: 1
+            border.color: T.lineStrong
+        }
+
+        contentItem: Column {
+            width: rangePicker.availableWidth
+
+            Repeater {
+                model: [
+                    { label: "新词 + 复习", value: "mix" },
+                    { label: "只学新词", value: "new" },
+                    { label: "只复习", value: "review" }
+                ]
+                delegate: Rectangle {
+                    width: parent.width
+                    height: 46
+                    radius: 8
+                    color: optionHover.hovered ? T.neutralPale : "transparent"
+                    HoverHandler { id: optionHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler {
+                        onTapped: {
+                            backend.setStudyScope(modelData.value)
+                            rangePicker.close()
+                        }
+                    }
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 16
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: String(modelData.label)
+                        color: T.ink
+                        font.family: T.fontCN
+                        font.pixelSize: 13
+                    }
+                    Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: backend.studyScope === modelData.value
+                        text: "✓"
+                        color: T.ink
+                        font.family: T.fontCN
+                        font.pixelSize: 13
+                        font.bold: true
+                    }
+                }
+            }
         }
     }
 

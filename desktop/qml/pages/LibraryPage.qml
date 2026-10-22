@@ -216,9 +216,7 @@ Item {
                         height: 224
                         deck: modelData
                         favorite: modelData.favorite || false
-                        onStart: {
-                            backend.openDeck(deck.id)
-                        }
+                        onStart: backend.openDeck(String(modelData.id || ""))
                         onFavoriteToggled: backend.toggleDeckFavorite(modelData.id)
                     }
                 }

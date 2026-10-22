@@ -3,7 +3,6 @@ import QtQuick.Controls
 import QtQuick.Layouts
 import "../Theme.js" as T
 import "../components"
-import md3.Core as MD3
 
 Item {
     id: page
@@ -11,18 +10,23 @@ Item {
     property bool reveal: false
     property string query: ""
     property string selectedWordId: ""
-    property bool confirmReset: false
-    property bool confirmDelete: false
+    property int browseChapter: 0
     readonly property bool active: backend.page === "deck"
     readonly property var allWords: active ? (backend.deckEntries || []) : []
+    readonly property int chapterClamped: Math.max(0, Math.min(page.browseChapter,
+                                                               Math.max(0, Number(backend.chapterCount || 1) - 1)))
+    readonly property var chapterWords: {
+        var size = Math.max(1, Number(backend.chapterSize || 20))
+        var start = page.chapterClamped * size
+        return page.allWords.slice(start, start + size)
+    }
     readonly property var filteredWords: {
-        var source = page.allWords
         var needle = page.query.trim().toLowerCase()
         if (!needle)
-            return source
+            return page.chapterWords
         var result = []
-        for (var i = 0; i < source.length; ++i) {
-            var entry = source[i]
+        for (var i = 0; i < page.chapterWords.length; ++i) {
+            var entry = page.chapterWords[i]
             var haystack = (String(entry.word || "") + " " + String(entry.meaning || "")
                             + " " + String(entry.phonetic || "")).toLowerCase()
             if (haystack.indexOf(needle) >= 0)
@@ -32,449 +36,306 @@ Item {
     }
 
     function enter() {
-        reveal = false
-        replayTimer.restart()
-    }
-
-    Timer {
-        id: replayTimer
-        interval: 40
-        onTriggered: page.reveal = true
+        page.browseChapter = Math.max(0, Number(backend.currentChapter || 0))
+        page.query = ""
+        page.selectedWordId = ""
+        reveal = true
     }
 
     ColumnLayout {
         anchors.fill: parent
-        spacing: 14
+        anchors.leftMargin: 40
+        anchors.rightMargin: 0
+        anchors.bottomMargin: 20
+        spacing: 0
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 12
+        Rectangle {
+            Layout.preferredWidth: 400
+            Layout.maximumWidth: 440
+            Layout.preferredHeight: 38
+            Layout.topMargin: 14
+            Layout.bottomMargin: 14
+            Layout.alignment: Qt.AlignLeft
+            radius: 19
+            color: T.white
+            border.width: 1
+            border.color: searchField.activeFocus ? T.ink : T.line
 
-            TextButton {
-                text: "返回词库"
-                shortcut: "Esc"
-                bordered: true
-                onClicked: backend.openPage("library")
-            }
-
-            Text {
-                text: String(backend.deckCount || 0) + " 个词条"
-                color: T.muted
+            TextField {
+                id: searchField
+                anchors.fill: parent
+                anchors.leftMargin: 16
+                anchors.rightMargin: 16
+                padding: 0
+                color: T.ink
+                placeholderText: "搜索本章单词、释义或音标…"
+                placeholderTextColor: T.faint
                 font.family: T.fontCN
                 font.pixelSize: 12
-                Layout.alignment: Qt.AlignVCenter
-            }
-
-            Item { Layout.fillWidth: true }
-
-            TextButton {
-                text: "重学词书"
-                shortcut: "Ctrl+Shift+R"
-                bordered: true
-                onClicked: page.confirmReset = true
-            }
-
-            TextButton {
-                text: "删除词书"
-                shortcut: "Delete"
-                bordered: true
-                contentColor: T.red
-                visible: backend.selectedDeckCustom
-                onClicked: page.confirmDelete = true
-            }
-
-            AppButton {
-                text: "继续第 " + String(backend.currentChapter + 1) + " 章"
-                shortcut: "Ctrl+Enter"
-                primary: true
-                showBorder: true
-                implicitHeight: 42
-                implicitWidth: 124
-                fontSize: 13
-                onClicked: backend.resumeChapter()
+                verticalAlignment: TextInput.AlignVCenter
+                background: Rectangle { color: "transparent" }
+                text: page.query
+                onTextChanged: if (text !== page.query) page.query = text
             }
         }
 
         Rectangle {
             Layout.fillWidth: true
-            Layout.preferredHeight: 192
-            radius: 12
-            color: T.white
-            border.width: 1
-            border.color: T.line
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 16
-                spacing: 9
-
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 10
-                    Text {
-                        text: "章节"
-                        color: T.ink
-                        font.family: T.fontCN
-                        font.pixelSize: 14
-                        font.bold: true
-                    }
-                    Text {
-                        text: String(backend.chapterCount || 0) + " 章 · 每章 " + String(backend.chapterSize) + " 词"
-                        color: T.muted
-                        font.family: T.fontCN
-                        font.pixelSize: 11
-                    }
-                    Item { Layout.fillWidth: true }
-                    Text {
-                        text: "上次学习：第 " + String(backend.currentChapter + 1) + " 章"
-                        color: T.faint
-                        font.family: T.fontCN
-                        font.pixelSize: 10
-                    }
-                }
-
-                GridView {
-                    Layout.fillWidth: true
-                    Layout.fillHeight: true
-                    clip: true
-                    cellWidth: 112
-                    cellHeight: 48
-                    model: backend.chapterRows || []
-                    ScrollBar.vertical: AppScrollBar { policy: ScrollBar.AsNeeded }
-
-                    delegate: Rectangle {
-                        width: 106
-                        height: 42
-                        radius: 8
-                        color: modelData.current ? T.neutralPale : T.white
-                        border.width: 1
-                        border.color: modelData.current ? T.ink : T.line
-                        HoverHandler { cursorShape: Qt.PointingHandCursor }
-                        TapHandler { onTapped: backend.startChapter(Number(modelData.index)) }
-
-                        Column {
-                            anchors.centerIn: parent
-                            spacing: 1
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: String(modelData.label)
-                                color: T.ink
-                                font.family: T.fontCN
-                                font.pixelSize: 11
-                                font.bold: modelData.current
-                            }
-                            Text {
-                                anchors.horizontalCenter: parent.horizontalCenter
-                                text: modelData.status === "done" ? "已完成"
-                                      : (modelData.status === "active" ? "学习中 · " + String(modelData.percent) + "%" : "未开始")
-                                color: modelData.status === "done" ? T.green
-                                     : (modelData.current ? T.inkSoft : T.faint)
-                                font.family: T.fontCN
-                                font.pixelSize: 9
-                            }
-                        }
-                    }
-                }
-            }
+            Layout.preferredHeight: 1
+            color: T.line
         }
 
-        MD3.TextField {
-            Layout.fillWidth: true
-            Layout.preferredHeight: 54
-            type: "outlined"
-            placeholderText: "搜索单词、释义或音标…"
-            leadingIcon: "search"
-            text: page.query
-            onTextChanged: if (text !== page.query) page.query = text
-        }
-
-        ListView {
-            id: wordList
+        RowLayout {
             Layout.fillWidth: true
             Layout.fillHeight: true
-            clip: true
             spacing: 0
-            model: page.filteredWords
-            cacheBuffer: 1200
-            ScrollBar.vertical: AppScrollBar { policy: ScrollBar.AsNeeded }
 
-            delegate: Rectangle {
-                id: wordRow
-                width: ListView.view.width
-                height: rowColumn.implicitHeight + (expanded ? 22 : 16)
-                color: expanded ? T.neutralPale : T.white
-
-                readonly property var entry: modelData
-                readonly property bool expanded: page.selectedWordId === String(entry.id || "")
-
-                Behavior on height { NumberAnimation { duration: 180; easing.type: Easing.OutCubic } }
-                Behavior on color { ColorAnimation { duration: 140 } }
-
-                HoverHandler { cursorShape: Qt.PointingHandCursor }
-                TapHandler {
-                    onTapped: {
-                        var id = String(wordRow.entry.id || "")
-                        page.selectedWordId = page.selectedWordId === id ? "" : id
-                    }
-                }
+            Item {
+                Layout.preferredWidth: 296
+                Layout.fillHeight: true
 
                 ColumnLayout {
-                    id: rowColumn
-                    anchors.left: parent.left
-                    anchors.right: parent.right
-                    anchors.top: parent.top
-                    anchors.leftMargin: 20
-                    anchors.rightMargin: 20
-                    anchors.topMargin: 10
-                    spacing: 7
+                    anchors.fill: parent
+                    spacing: 0
 
                     RowLayout {
                         Layout.fillWidth: true
-                        spacing: 10
-
+                        Layout.preferredHeight: 44
+                        Layout.leftMargin: 14
+                        Layout.rightMargin: 14
                         Text {
-                            text: String(wordRow.entry.word || "")
+                            text: "章节"
                             color: T.ink
-                            font.family: T.fontEN
-                            font.pixelSize: 22
+                            font.family: T.fontCN
+                            font.pixelSize: 13
                             font.bold: true
                         }
                         Text {
-                            visible: String(wordRow.entry.phonetic || "").length > 0
-                            text: "/" + String(wordRow.entry.phonetic || "") + "/"
+                            text: String(backend.chapterCount || 0) + " 章"
                             color: T.muted
-                            font.family: T.fontEN
-                            font.pixelSize: 13
-                            Layout.alignment: Qt.AlignVCenter
+                            font.family: T.fontCN
+                            font.pixelSize: 10
                         }
                         Item { Layout.fillWidth: true }
-
-                        Text {
-                            text: wordRow.entry.mastered ? "已掌握"
-                                  : (wordRow.entry.studied ? "已学" : "")
-                            color: T.faint
-                            font.family: T.fontCN
-                            font.pixelSize: 11
-                            Layout.alignment: Qt.AlignVCenter
-                        }
-
-                        TextButton {
-                            text: "发音"
-                            onClicked: backend.speak(String(wordRow.entry.word || ""))
-                        }
-                    }
-
-                    ColumnLayout {
-                        Layout.fillWidth: true
-                        spacing: 9
-                        visible: wordRow.expanded
-
-                        Repeater {
-                            model: T.senseRows(wordRow.entry)
-                            delegate: ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 2
-                                Text {
-                                    text: T.posLabel(modelData.pos)
-                                    color: T.rose
-                                    font.family: T.fontEN
-                                    font.pixelSize: 13
-                                    font.italic: true
-                                    font.bold: true
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: T.rowMeaning(modelData)
-                                    color: T.inkSoft
-                                    font.family: T.fontCN
-                                    font.pixelSize: 15
-                                    wrapMode: Text.WordWrap
-                                    lineHeight: 1.35
-                                }
-                            }
-                        }
-
-                        Rectangle {
-                            Layout.fillWidth: true
-                            Layout.preferredHeight: 1
-                            color: T.line
-                            visible: String(wordRow.entry.example || "").length > 0
-                        }
-
-                        Text {
-                            Layout.fillWidth: true
-                            visible: String(wordRow.entry.example || "").length > 0
-                            text: String(wordRow.entry.example || "")
-                            color: T.inkSoft
-                            font.family: T.fontEN
-                            font.pixelSize: 15
-                            wrapMode: Text.WordWrap
-                            lineHeight: 1.35
-                        }
-                        Text {
-                            Layout.fillWidth: true
-                            visible: String(wordRow.entry.exampleZh || "").length > 0
-                            text: String(wordRow.entry.exampleZh || "")
-                            color: T.muted
-                            font.family: T.fontCN
-                            font.pixelSize: 13
-                            wrapMode: Text.WordWrap
-                            lineHeight: 1.35
-                        }
                     }
 
                     Rectangle {
                         Layout.fillWidth: true
                         Layout.preferredHeight: 1
                         color: T.line
-                        visible: !wordRow.expanded
                     }
-                }
-            }
 
-            Text {
-                anchors.centerIn: parent
-                visible: page.filteredWords.length === 0
-                text: page.query.length > 0 ? "没有找到匹配的单词" : "这个词库还没有词条"
-                color: T.muted
-                font.family: T.fontCN
-                font.pixelSize: 14
-            }
-        }
-    }
+                    ListView {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        spacing: 2
+                        model: backend.chapterRows || []
+                        ScrollBar.vertical: AppScrollBar { policy: ScrollBar.AsNeeded }
 
-    Rectangle {
-        anchors.fill: parent
-        color: "#5A000000"
-        visible: page.confirmReset
-        z: 200
+                        delegate: Rectangle {
+                            readonly property bool selected: Number(modelData.index) === page.chapterClamped
+                            readonly property bool done: modelData.status === "done"
+                            width: ListView.view.width - 12
+                            x: 6
+                            height: 46
+                            radius: 8
+                            color: selected ? T.neutralPale : (chapterHover.hovered ? T.neutralPale : "transparent")
 
-        MouseArea {
-            anchors.fill: parent
-            onClicked: page.confirmReset = false
-        }
+                            HoverHandler { id: chapterHover; cursorShape: Qt.PointingHandCursor }
+                            TapHandler {
+                                onTapped: {
+                                    page.browseChapter = Number(modelData.index)
+                                    page.selectedWordId = ""
+                                }
+                            }
 
-        Rectangle {
-            width: 380
-            height: 190
-            anchors.centerIn: parent
-            radius: 12
-            color: T.white
-            border.width: 1
-            border.color: T.lineStrong
+                            Column {
+                                anchors.left: parent.left
+                                anchors.leftMargin: 12
+                                anchors.verticalCenter: parent.verticalCenter
+                                spacing: 2
+                                Text {
+                                    text: String(modelData.label)
+                                    color: T.ink
+                                    font.family: T.fontCN
+                                    font.pixelSize: 12
+                                    font.bold: selected
+                                }
+                                Text {
+                                    text: done ? "已完成"
+                                          : (modelData.status === "active"
+                                             ? "学习中·" + String(modelData.percent) + "%" : "未开始")
+                                    color: done ? "#5D9371" : T.faint
+                                    font.family: T.fontCN
+                                    font.pixelSize: 9
+                                }
+                            }
 
-            MouseArea {
-                anchors.fill: parent
-                z: -1
-                onClicked: {}
-            }
-
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 22
-                spacing: 10
-
-                Text {
-                    text: "重学这本词书？"
-                    color: T.ink
-                    font.family: T.fontCN
-                    font.pixelSize: 17
-                    font.bold: true
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: "会清空《" + String(backend.deckName || "") + "》全部学习进度，所有单词回到未学状态。"
-                    color: T.muted
-                    font.family: T.fontCN
-                    font.pixelSize: 12
-                    wrapMode: Text.WordWrap
-                    lineHeight: 1.4
-                }
-                Item { Layout.fillHeight: true }
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-                    Item { Layout.fillWidth: true }
-                    TextButton {
-                        text: "取消"
-                        onClicked: page.confirmReset = false
-                    }
-                    TextButton {
-                        text: "确认重学"
-                        onClicked: {
-                            page.confirmReset = false
-                            backend.resetDeck(backend.selectedDeckId)
+                            Rectangle {
+                                visible: done
+                                width: 22
+                                height: 22
+                                radius: 11
+                                anchors.right: parent.right
+                                anchors.rightMargin: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                                color: "#6FAF86"
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: "✓"
+                                    color: T.white
+                                    font.family: T.fontEN
+                                    font.pixelSize: 12
+                                    font.bold: true
+                                }
+                            }
                         }
                     }
                 }
             }
-        }
-    }
 
-    Rectangle {
-        anchors.fill: parent
-        color: "#5A000000"
-        visible: page.confirmDelete
-        z: 201
-
-        MouseArea {
-            anchors.fill: parent
-            onClicked: page.confirmDelete = false
-        }
-
-        Rectangle {
-            width: 380
-            height: 190
-            anchors.centerIn: parent
-            radius: 12
-            color: T.white
-            border.width: 1
-            border.color: T.lineStrong
-
-            MouseArea {
-                anchors.fill: parent
-                z: -1
-                onClicked: {}
+            Rectangle {
+                Layout.preferredWidth: 1
+                Layout.fillHeight: true
+                color: T.line
             }
 
-            ColumnLayout {
-                anchors.fill: parent
-                anchors.margins: 22
-                spacing: 10
+            Item {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
 
-                Text {
-                    text: "删除这本词书？"
-                    color: T.ink
-                    font.family: T.fontCN
-                    font.pixelSize: 17
-                    font.bold: true
-                }
-                Text {
-                    Layout.fillWidth: true
-                    text: "会从词书列表中移除《" + String(backend.deckName || "") + "》，并清除其学习进度。此操作不可撤销。"
-                    color: T.muted
-                    font.family: T.fontCN
-                    font.pixelSize: 12
-                    wrapMode: Text.WordWrap
-                    lineHeight: 1.4
-                }
-                Item { Layout.fillHeight: true }
-                RowLayout {
-                    Layout.fillWidth: true
-                    spacing: 8
-                    Item { Layout.fillWidth: true }
-                    TextButton {
-                        text: "取消"
-                        bordered: true
-                        onClicked: page.confirmDelete = false
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.leftMargin: 24
+                    anchors.rightMargin: 0
+                    spacing: 0
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 44
+                        Layout.rightMargin: 40
+                        Text {
+                            text: "第 " + String(page.chapterClamped + 1) + " 章"
+                            color: T.ink
+                            font.family: T.fontCN
+                            font.pixelSize: 13
+                            font.bold: true
+                        }
+                        Text {
+                            text: String(page.chapterWords.length) + " 个词条"
+                            color: T.muted
+                            font.family: T.fontCN
+                            font.pixelSize: 10
+                        }
+                        Item { Layout.fillWidth: true }
                     }
-                    TextButton {
-                        text: "确认删除"
-                        bordered: true
-                        contentColor: T.red
-                        onClicked: {
-                            page.confirmDelete = false
-                            backend.deleteCustomBook(backend.selectedDeckId)
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.preferredHeight: 1
+                        color: T.line
+                    }
+
+                    ListView {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        clip: true
+                        spacing: 0
+                        model: page.filteredWords
+                        cacheBuffer: 1200
+                        ScrollBar.vertical: AppScrollBar { policy: ScrollBar.AsNeeded }
+
+                        delegate: Rectangle {
+                            id: wordRow
+                            width: ListView.view.width - 12
+                            x: 6
+                            height: expanded ? wordColumn.implicitHeight + 20 : 54
+                            radius: 9
+                            color: expanded ? T.neutralPale : "transparent"
+
+                            readonly property var entry: modelData
+                            readonly property bool expanded: page.selectedWordId === String(entry.id || "")
+                            Behavior on height { NumberAnimation { duration: 160; easing.type: Easing.OutCubic } }
+
+                            HoverHandler { cursorShape: Qt.PointingHandCursor }
+                            TapHandler {
+                                onTapped: {
+                                    var id = String(wordRow.entry.id || "")
+                                    page.selectedWordId = page.selectedWordId === id ? "" : id
+                                }
+                            }
+
+                            ColumnLayout {
+                                id: wordColumn
+                                anchors.left: parent.left
+                                anchors.right: parent.right
+                                anchors.rightMargin: 40
+                                anchors.top: parent.top
+                                anchors.topMargin: 10
+                                spacing: 7
+
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    spacing: 10
+                                    Text {
+                                        text: String(wordRow.entry.word || "")
+                                        color: T.ink
+                                        font.family: T.fontEN
+                                        font.pixelSize: 17
+                                        font.bold: true
+                                    }
+                                    Text {
+                                        visible: String(wordRow.entry.phonetic || "").length > 0
+                                        text: "/" + String(wordRow.entry.phonetic || "") + "/"
+                                        color: T.muted
+                                        font.family: T.fontEN
+                                        font.pixelSize: 12
+                                        Layout.alignment: Qt.AlignVCenter
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                    Text {
+                                        text: wordRow.entry.mastered ? "已掌握"
+                                              : (wordRow.entry.studied ? "已学" : "")
+                                        color: T.faint
+                                        font.family: T.fontCN
+                                        font.pixelSize: 10
+                                        Layout.alignment: Qt.AlignVCenter
+                                    }
+                                    TextButton {
+                                        text: "发音"
+                                        onClicked: backend.speak(String(wordRow.entry.word || ""))
+                                    }
+                                }
+
+                                Text {
+                                    Layout.fillWidth: true
+                                    Layout.rightMargin: 20
+                                    visible: wordRow.expanded && String(wordRow.entry.meaning || "").length > 0
+                                    text: String(wordRow.entry.meaning || "")
+                                    color: T.inkSoft
+                                    font.family: T.fontCN
+                                    font.pixelSize: 13
+                                    wrapMode: Text.WordWrap
+                                    lineHeight: 1.4
+                                }
+
+                                Rectangle {
+                                    Layout.fillWidth: true
+                                    Layout.preferredHeight: 1
+                                    color: T.line
+                                    visible: !wordRow.expanded
+                                }
+                            }
+                        }
+
+                        Text {
+                            anchors.centerIn: parent
+                            visible: page.filteredWords.length === 0
+                            text: page.query.length > 0 ? "没有找到匹配的单词" : "这一章还没有词条"
+                            color: T.muted
+                            font.family: T.fontCN
+                            font.pixelSize: 14
                         }
                     }
                 }

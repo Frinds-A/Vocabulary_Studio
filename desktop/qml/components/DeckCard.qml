@@ -65,17 +65,20 @@ Rectangle {
             Layout.fillHeight: true
 
             Row {
-                anchors.centerIn: parent
-                spacing: 6
-                opacity: 0.08
+                anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.rightMargin: 10
+                anchors.topMargin: 10
+                spacing: 4
+                opacity: 0.18
                 Repeater {
-                    model: [58, 44, 66, 38]
+                    model: [32, 24, 38, 28]
                     delegate: Rectangle {
-                        width: 13
+                        width: 9
                         height: Number(modelData)
                         radius: 2
                         color: T.ink
-                        rotation: index % 2 === 0 ? -3 : 2
+                        rotation: index % 2 === 0 ? -4 : 3
                     }
                 }
             }

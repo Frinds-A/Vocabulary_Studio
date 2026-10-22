@@ -7,6 +7,38 @@ import "../components"
 Item {
     id: page
     property bool reveal: false
+    signal studyWizardRequested(string deckId)
+
+    function scopeLabel() {
+        if (backend.studyScope === "new")
+            return "只学新词"
+        if (backend.studyScope === "review")
+            return "只复习"
+        return "新词 + 复习"
+    }
+
+    function openScopePicker() {
+        var point = scopePill.mapToItem(page, 0, scopePill.height + 6)
+        scopePicker.x = Math.max(20, Math.min(page.width - scopePicker.width - 20, point.x))
+        scopePicker.y = Math.max(20, Math.min(page.height - scopePicker.height - 20, point.y))
+        scopePicker.open()
+    }
+
+    function studyScopeSummary() {
+        var ids = backend.selectedDeckIds || []
+        var all = backend.decks || []
+        var names = []
+        for (var i = 0; i < all.length; ++i) {
+            if (ids.indexOf(String(all[i].id)) >= 0)
+                names.push(String(all[i].name || ""))
+        }
+        var books = names.length ? names.slice(0, 2).join("、")
+                                + (names.length > 2 ? " 等 " + names.length + " 本" : "")
+                                : "未选择词书"
+        var scope = backend.studyScope === "new" ? "只学新词"
+                  : (backend.studyScope === "review" ? "只复习" : "新词 + 复习")
+        return books + " · " + scope
+    }
 
     function enter() {
         reveal = false
@@ -79,6 +111,7 @@ Item {
                                 font.letterSpacing: 2.2
                                 font.bold: true
                             }
+                            Item { Layout.fillWidth: true }
                         }
 
                         Item { Layout.preferredHeight: 12 }
@@ -105,26 +138,64 @@ Item {
                         Item { Layout.fillHeight: true }
 
                         RowLayout {
+                            Layout.fillWidth: true
                             spacing: 10
                             AppButton {
-                                text: "开始今日计划"
+                                text: "开始学习"
                                 shortcut: "Ctrl+Enter"
                                 primary: true
                                 restoreStyle: true
                                 implicitHeight: 44
                                 fontSize: 14
                                 radiusValue: 10
-                                onClicked: backend.startPlan("today")
+                                onClicked: page.studyWizardRequested("")
                             }
                             AppButton {
-                                text: "继续上次"
-                                shortcut: "Ctrl+Enter"
+                                text: "继续学习"
+                                shortcut: "Ctrl+Shift+Enter"
                                 restoreStyle: true
-                                visible: backend.hasSession
                                 implicitHeight: 44
                                 fontSize: 13
                                 radiusValue: 10
-                                onClicked: backend.continueSession()
+                                onClicked: backend.continueStudy()
+                            }
+                            Item { Layout.fillWidth: true }
+                            Rectangle {
+                                id: scopePill
+                                implicitHeight: 30
+                                implicitWidth: scopeText.implicitWidth + 34
+                                Layout.alignment: Qt.AlignVCenter
+                                radius: 8
+                                color: T.neutralPale
+                                border.width: 1
+                                border.color: T.line
+                                HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                TapHandler { onTapped: page.openScopePicker() }
+
+                                Row {
+                                    id: scopeText
+                                    anchors.centerIn: parent
+                                    spacing: 6
+                                    Text {
+                                        text: "范围"
+                                        color: T.muted
+                                        font.family: T.fontCN
+                                        font.pixelSize: 11
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                    Text {
+                                        text: page.scopeLabel()
+                                        color: T.ink
+                                        font.family: T.fontCN
+                                        font.pixelSize: 11
+                                        font.bold: true
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                    Chevron {
+                                        color: T.faint
+                                        anchors.verticalCenter: parent.verticalCenter
+                                    }
+                                }
                             }
                         }
                     }
@@ -140,11 +211,21 @@ Item {
                         Layout.fillHeight: true
                         spacing: 0
 
-                        Text {
-                            text: "今日新词"
-                            color: T.muted
-                            font.family: T.fontCN
-                            font.pixelSize: 13
+                        RowLayout {
+                            Layout.fillWidth: true
+                            Text {
+                                text: "今日新词"
+                                color: T.muted
+                                font.family: T.fontCN
+                                font.pixelSize: 13
+                            }
+                            Item { Layout.fillWidth: true }
+                            Text {
+                                text: "待复习 " + String(backend.dueCount || 0)
+                                color: T.faint
+                                font.family: T.fontCN
+                                font.pixelSize: 11
+                            }
                         }
 
                         Item { Layout.preferredHeight: 4 }
@@ -322,4 +403,67 @@ Item {
             }
         }
     }
+
+    Popup {
+        id: scopePicker
+        parent: page
+        width: 220
+        height: 154
+        padding: 0
+        modal: false
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            radius: 10
+            color: T.white
+            border.width: 1
+            border.color: T.lineStrong
+        }
+
+        contentItem: Column {
+            width: scopePicker.availableWidth
+
+            Repeater {
+                model: [
+                    { label: "新词 + 复习", value: "mix" },
+                    { label: "只学新词", value: "new" },
+                    { label: "只复习", value: "review" }
+                ]
+                delegate: Rectangle {
+                    width: parent.width
+                    height: 46
+                    radius: 8
+                    color: scopeRowHover.hovered ? T.neutralPale : "transparent"
+                    HoverHandler { id: scopeRowHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler {
+                        onTapped: {
+                            backend.setStudyScope(modelData.value)
+                            scopePicker.close()
+                        }
+                    }
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 16
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: String(modelData.label)
+                        color: T.ink
+                        font.family: T.fontCN
+                        font.pixelSize: 13
+                    }
+                    Text {
+                        anchors.right: parent.right
+                        anchors.rightMargin: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                        visible: backend.studyScope === modelData.value
+                        text: "✓"
+                        color: T.ink
+                        font.family: T.fontCN
+                        font.pixelSize: 13
+                        font.bold: true
+                    }
+                }
+            }
+        }
+    }
+
 }

@@ -106,7 +106,7 @@ Item {
             }
             Text {
                 Layout.fillWidth: true
-                text: "源码在 GitHub 上。如果词序帮你多记住了一个词，求各位大人点一颗 Star 喵！QAQ"
+                text: "感谢各位大人使用，如果觉得有帮助的话，麻烦给俺点颗star喵QAQ！"
                 color: T.inkSoft
                 font.family: T.fontCN
                 font.pixelSize: 12
@@ -118,7 +118,8 @@ Item {
                 text: "https://github.com/Frinds-A/Vocabulary_Studio"
                 color: T.accent
                 font.family: T.fontEN
-                font.pixelSize: 12
+                font.pixelSize: 14
+                font.bold: true
                 wrapMode: Text.WrapAnywhere
                 MouseArea {
                     anchors.fill: parent
@@ -138,7 +139,7 @@ Item {
             }
             Text {
                 Layout.fillWidth: true
-                text: "每日先进入「今日计划」，先完成到期复习，再学习新词。每个词在一轮中学习两遍；拼错后先查看答案与例句，再重新拼写。若无法回忆，可使用提示或显示答案，随后再写一遍。"
+                text: "从首页点「开始学习」，选择词书与章节后进入拼写；点「继续学习」直接回到上次进度。每个词在一轮中学习两遍；拼错后先查看答案，再照着答案重新拼写。"
                 color: T.muted
                 font.family: T.fontCN
                 font.pixelSize: 12

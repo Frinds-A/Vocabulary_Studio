@@ -16,19 +16,20 @@ Item {
     readonly property var entry: backend.current || ({})
     readonly property string example: entry ? String(entry.example || "") : ""
     readonly property string exampleZh: entry ? String(entry.exampleZh || "") : ""
-    readonly property bool retryable: hasResult && !correct
+    readonly property bool retryable: hasResult && !correct && !revealed
                                      && !(backend.result && backend.result.skipped)
                                      && backend.currentMode !== "choice"
     readonly property bool validResult: hasResult
                                         && String(backend.result.expected || "").length > 0
                                         && (String(backend.answer || "").length > 0
-                                            || backend.result.skipped === true)
+                                            || backend.result.skipped === true
+                                            || revealed)
 
     signal nextRequested()
-    signal collectRequested()
     signal retryRequested()
 
-    visible: validResult
+    // Revealed answers render directly on the letter dashes, no panel needed.
+    visible: validResult && !panel.revealed
     implicitWidth: 820
     implicitHeight: content.implicitHeight + 36
 
@@ -80,12 +81,6 @@ Item {
             }
 
             Item { Layout.fillWidth: true }
-
-            TextButton {
-                text: "收藏"
-                Layout.preferredWidth: 56
-                onClicked: panel.collectRequested()
-            }
 
             AppButton {
                 text: panel.retryable ? "重新拼写" : "下一题"

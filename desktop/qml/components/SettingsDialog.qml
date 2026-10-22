@@ -220,7 +220,7 @@ Item {
 
                                 Rectangle {
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 252
+                                    Layout.preferredHeight: 220
                                     radius: 12
                                     color: T.white
                                     border.width: 1
@@ -237,12 +237,6 @@ Item {
                                             font.family: T.fontCN
                                             font.pixelSize: 16
                                             font.bold: true
-                                        }
-                                        Text {
-                                            text: "单词书和词组各选一本；也可以只选其中一类。"
-                                            color: T.muted
-                                            font.family: T.fontCN
-                                            font.pixelSize: 11
                                         }
                                         RowLayout {
                                             Layout.fillWidth: true
@@ -307,72 +301,36 @@ Item {
                                     }
                                 }
 
-                                Rectangle {
+                                SettingToggle {
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 112
-                                    radius: 12
-                                    color: T.white
-                                    border.width: 1
-                                    border.color: T.line
-                                    ColumnLayout {
+                                    title: "发音口音"
+                                    glyph: "◉"
+                                    showSwitch: false
+                                    extraHeight: 44
+
+                                    RowLayout {
                                         anchors.fill: parent
-                                        anchors.margins: 18
-                                        spacing: 7
-                                        RowLayout {
-                                            Layout.fillWidth: true
-                                            Text {
-                                                text: "发音口音"
-                                                color: T.ink
-                                                font.family: T.fontCN
-                                                font.pixelSize: 14
-                                                font.bold: true
-                                                Layout.fillWidth: true
-                                            }
-                                            Row {
-                                                spacing: 6
-                                                Repeater {
-                                                    model: [["us", "美式"], ["uk", "英式"]]
-                                                    delegate: Rectangle {
-                                                        width: 58
-                                                        height: 30
-                                                        radius: 7
-                                                        color: backend.voiceAccent === modelData[0] ? T.ink : T.white
-                                                        border.width: 1
-                                                        border.color: backend.voiceAccent === modelData[0] ? T.ink : T.lineStrong
-                                                        Text {
-                                                            anchors.centerIn: parent
-                                                            text: modelData[1]
-                                                            color: backend.voiceAccent === modelData[0] ? T.white : T.inkSoft
-                                                            font.family: T.fontCN
-                                                            font.pixelSize: 11
-                                                        }
-                                                        HoverHandler { cursorShape: Qt.PointingHandCursor }
-                                                        TapHandler { onTapped: backend.setVoiceAccent(modelData[0]) }
-                                                    }
-                                                }
-                                            }
+                                        anchors.leftMargin: 18
+                                        anchors.rightMargin: 18
+                                        anchors.bottomMargin: 12
+                                        spacing: 8
+                                        Chip {
+                                            label: "美式"
+                                            selected: backend.voiceAccent === "us"
+                                            onClicked: backend.setVoiceAccent("us")
                                         }
-                                        Text {
-                                            text: "影响自动朗读和听音拼写的发音。"
-                                            color: T.muted
-                                            font.family: T.fontCN
-                                            font.pixelSize: 10
+                                        Chip {
+                                            label: "英式"
+                                            selected: backend.voiceAccent === "uk"
+                                            onClicked: backend.setVoiceAccent("uk")
                                         }
-                                        Text {
-                                            Layout.fillWidth: true
-                                            text: backend.voiceAccentStatus
-                                            color: backend.voiceAccent === "uk" && !backend.britishVoiceAvailable ? T.red : T.faint
-                                            font.family: T.fontCN
-                                            font.pixelSize: 10
-                                            wrapMode: Text.WordWrap
-                                        }
+                                        Item { Layout.fillWidth: true }
                                     }
                                 }
 
                                 SettingToggle {
                                     Layout.fillWidth: true
                                     title: "自动检查更新"
-                                    subtitle: "启动时检测新版本；关闭后仍可手动检查"
                                     glyph: "↓"
                                     checked: !backend.settings || backend.settings.autoCheckUpdates !== false
                                     onToggled: backend.saveSetting("autoCheckUpdates", !checked)
@@ -380,73 +338,107 @@ Item {
                                 SettingToggle {
                                     Layout.fillWidth: true
                                     title: "章节练习"
-                                    subtitle: "把每日学习拆成小段，完成一章再继续"
                                     glyph: "▤"
                                     checked: backend.chapterMode
+                                    extraHeight: backend.chapterMode ? 44 : 0
                                     onToggled: backend.saveSetting("chapterMode", !checked)
-                                }
-                                RowLayout {
-                                    Layout.fillWidth: true
-                                    Layout.leftMargin: 18
-                                    Layout.rightMargin: 18
-                                    visible: backend.chapterMode
-                                    spacing: 8
-                                    Text {
-                                        text: "每章词数"
-                                        color: T.muted
-                                        font.family: T.fontCN
-                                        font.pixelSize: 11
-                                    }
-                                    Repeater {
-                                        model: [10, 20, 30, 50]
-                                        delegate: Chip {
-                                            label: String(modelData)
-                                            selected: backend.chapterSize === modelData
-                                            onClicked: backend.setChapterSize(modelData)
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 18
+                                        anchors.rightMargin: 18
+                                        anchors.bottomMargin: 12
+                                        spacing: 8
+                                        Text {
+                                            text: "每章词数"
+                                            color: T.muted
+                                            font.family: T.fontCN
+                                            font.pixelSize: 11
                                         }
+                                        Repeater {
+                                            model: [10, 20, 30, 50]
+                                            delegate: Chip {
+                                                label: String(modelData)
+                                                selected: backend.chapterSize === modelData
+                                                onClicked: backend.setChapterSize(modelData)
+                                            }
+                                        }
+                                        Item { Layout.fillWidth: true }
                                     }
-                                    Item { Layout.fillWidth: true }
                                 }
                                 SettingToggle {
                                     Layout.fillWidth: true
                                     title: "输入音效"
-                                    subtitle: "敲击键盘时播放轻微按键声"
                                     glyph: "⌨"
                                     checked: backend.inputSound
+                                    extraHeight: backend.inputSound ? 44 : 0
                                     onToggled: backend.saveSetting("inputSound", !checked)
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 18
+                                        anchors.rightMargin: 18
+                                        anchors.bottomMargin: 12
+                                        spacing: 8
+                                        Text {
+                                            text: "音色"
+                                            color: T.muted
+                                            font.family: T.fontCN
+                                            font.pixelSize: 11
+                                        }
+                                        Chip {
+                                            label: "按键"
+                                            selected: backend.inputSoundStyle === "click"
+                                            onClicked: {
+                                                backend.setInputSoundStyle("click")
+                                                backend.playInputSound()
+                                            }
+                                        }
+                                        Chip {
+                                            label: "冒泡"
+                                            selected: backend.inputSoundStyle === "bubble"
+                                            onClicked: {
+                                                backend.setInputSoundStyle("bubble")
+                                                backend.playInputSound()
+                                            }
+                                        }
+                                        Item { Layout.fillWidth: true }
+                                    }
                                 }
-                                RowLayout {
+                                SettingToggle {
                                     Layout.fillWidth: true
-                                    Layout.leftMargin: 18
-                                    Layout.rightMargin: 18
-                                    spacing: 8
-                                    Text {
-                                        text: "发音语速"
-                                        color: T.muted
-                                        font.family: T.fontCN
-                                        font.pixelSize: 11
+                                    title: "发音语速"
+                                    glyph: "◔"
+                                    showSwitch: false
+                                    extraHeight: 44
+
+                                    RowLayout {
+                                        anchors.fill: parent
+                                        anchors.leftMargin: 18
+                                        anchors.rightMargin: 18
+                                        anchors.bottomMargin: 12
+                                        spacing: 8
+                                        Chip {
+                                            label: "慢"
+                                            selected: backend.speechRate < -0.1
+                                            onClicked: backend.setSpeechRate(-0.25)
+                                        }
+                                        Chip {
+                                            label: "正常"
+                                            selected: Math.abs(backend.speechRate) <= 0.1
+                                            onClicked: backend.setSpeechRate(0.0)
+                                        }
+                                        Chip {
+                                            label: "快"
+                                            selected: backend.speechRate > 0.1
+                                            onClicked: backend.setSpeechRate(0.25)
+                                        }
+                                        Item { Layout.fillWidth: true }
                                     }
-                                    Chip {
-                                        label: "慢"
-                                        selected: backend.speechRate < -0.1
-                                        onClicked: backend.setSpeechRate(-0.25)
-                                    }
-                                    Chip {
-                                        label: "正常"
-                                        selected: Math.abs(backend.speechRate) <= 0.1
-                                        onClicked: backend.setSpeechRate(0.0)
-                                    }
-                                    Chip {
-                                        label: "快"
-                                        selected: backend.speechRate > 0.1
-                                        onClicked: backend.setSpeechRate(0.25)
-                                    }
-                                    Item { Layout.fillWidth: true }
                                 }
                                 SettingToggle {
                                     Layout.fillWidth: true
                                     title: "自动备份学习记录"
-                                    subtitle: "每天保留一份快照，最多 7 份"
                                     glyph: "◷"
                                     checked: !backend.settings || backend.settings.autoBackup !== false
                                     onToggled: backend.saveSetting("autoBackup", !checked)
@@ -454,7 +446,6 @@ Item {
                                 SettingToggle {
                                     Layout.fillWidth: true
                                     title: "答题后自动播放发音"
-                                    subtitle: "提交后播放单词读音"
                                     glyph: "♫"
                                     checked: !backend.settings || backend.settings.autoSpeak !== false
                                     onToggled: backend.saveSetting("autoSpeak", !checked)
@@ -462,7 +453,6 @@ Item {
                                 SettingToggle {
                                     Layout.fillWidth: true
                                     title: "间隔复习计划"
-                                    subtitle: "1 天 → 2 天 → 4 天 → 7 天 → 15 天 → 30 天"
                                     glyph: "↻"
                                     checked: !backend.settings || backend.settings.spacedRepetition !== false
                                     onToggled: backend.saveSetting("spacedRepetition", !checked)
@@ -471,7 +461,6 @@ Item {
                                     Layout.fillWidth: true
                                     visible: backend.selectedWordDeckId !== "" && backend.selectedPhraseDeckId !== ""
                                     title: "生词本加入今日计划"
-                                    subtitle: "单词书 + 词组模式下可叠加生词本"
                                     glyph: "▤"
                                     checked: backend.settings && backend.settings.includeNotebook === true
                                     onToggled: backend.saveSetting("includeNotebook", !checked)

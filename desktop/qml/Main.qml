@@ -42,6 +42,7 @@ ApplicationWindow {
     readonly property bool hasRetryResult: backend.retryResult !== null
                                           && backend.retryResult !== undefined
     readonly property bool resultCorrect: hasResult && backend.result.correct
+    readonly property bool resultRevealed: hasResult && backend.result.revealed === true
     readonly property bool immersiveSpelling: root.immersive
                                              && backend.page === "practice"
                                              && backend.currentMode === "spelling"
@@ -76,7 +77,8 @@ ApplicationWindow {
     function pageSubtitle() {
         switch (backend.page) {
         case "library": return "选择一本词书，按自己的节奏学习。"
-        case "deck": return "浏览词表，点击单词查看释义和发音。"
+        case "deck": return String(backend.deckCount || 0) + " 个词条 · "
+                           + String(backend.chapterCount || 0) + " 章"
         case "practice": return "一次一个词，慢慢来。"
         case "notebook": return "想记的词，都在这里。"
         case "stats": return "每天一点点，积累成线。"
@@ -190,9 +192,9 @@ ApplicationWindow {
 
     function openPracticeShortcut() {
         if (backend.hasSession)
-            backend.continueSession()
+            backend.continueStudy()
         else
-            backend.openPage("practice")
+            backend.openPage("library")
     }
 
     function speakCurrent() {
@@ -215,11 +217,11 @@ ApplicationWindow {
 
     function startShortcut() {
         if (backend.page === "deck")
-            backend.startPlan("deck")
+            backend.startStudyChapter(backend.currentChapter)
         else if (backend.hasSession && backend.page !== "practice")
-            backend.continueSession()
+            backend.continueStudy()
         else
-            backend.startPlan("today")
+            backend.openPage("library")
     }
 
     function openExportBackupDialog() {
@@ -257,111 +259,6 @@ ApplicationWindow {
     }
 
     Shortcut { sequence: "Escape"; onActivated: root.handleEscapeKey() }
-    Shortcut {
-        sequence: "Left"
-        enabled: backend.page === "practice" && !root.modalOpen
-        onActivated: root.handlePreviousWord()
-    }
-    Shortcut {
-        sequence: "Right"
-        enabled: backend.page === "practice" && !root.modalOpen
-        onActivated: root.handleNextWord()
-    }
-    Shortcut { sequence: "F11"; enabled: !root.modalOpen; onActivated: root.toggleFocusFullscreen() }
-    Shortcut {
-        sequence: "Alt+K"
-        enabled: backend.page === "practice" && backend.currentMode === "spelling"
-                 && !backend.result && !root.hasRetryResult && !root.modalOpen
-        onActivated: {
-            backend.hintFirstLetter()
-            if (root.immersiveSpelling)
-                answerInputImmersive.forceActiveFocus()
-            else
-                practicePage.focusAnswer()
-        }
-    }
-    Shortcut {
-        sequence: "Alt+A"
-        enabled: backend.page === "practice" && backend.hasSession
-                 && !backend.result && !backend.retrying && !root.hasRetryResult && !root.modalOpen
-        onActivated: backend.revealAnswer()
-    }
-    Shortcut {
-        sequence: "Alt+R"
-        enabled: backend.page === "practice" && !root.modalOpen
-                 && backend.result !== null && backend.result !== undefined
-                 && (backend.result.revealed === true
-                     || (backend.result.correct === false && backend.result.skipped === false
-                         && backend.currentMode !== "choice"))
-        onActivated: {
-            backend.startRetry()
-            if (root.immersiveSpelling)
-                Qt.callLater(function() { answerInputImmersive.forceActiveFocus() })
-            else
-                Qt.callLater(function() { practicePage.focusAnswer() })
-        }
-    }
-    Shortcut {
-        sequence: "Alt+S"
-        enabled: backend.page === "practice" && backend.hasSession
-                 && !backend.retrying && !root.hasRetryResult && !root.modalOpen
-        onActivated: backend.skip()
-    }
-    Shortcut {
-        sequence: "Ctrl+Return"
-        enabled: !root.modalOpen && backend.page !== "practice"
-        onActivated: root.startShortcut()
-    }
-    Shortcut {
-        sequence: "1"
-        enabled: backend.page === "practice" && !backend.hasSession && !root.modalOpen
-        onActivated: backend.setMode("spelling")
-    }
-    Shortcut {
-        sequence: "2"
-        enabled: backend.page === "practice" && !backend.hasSession && !root.modalOpen
-        onActivated: backend.setMode("choice")
-    }
-    Shortcut {
-        sequence: "3"
-        enabled: backend.page === "practice" && !backend.hasSession && !root.modalOpen
-        onActivated: backend.setMode("dictation")
-    }
-    Shortcut {
-        sequence: "Ctrl+K"
-        enabled: backend.page === "practice" && !backend.hasSession && !root.modalOpen
-        onActivated: practicePage.openDeckPicker()
-    }
-    Shortcut {
-        sequence: "Ctrl+I"
-        enabled: !root.welcomeOpen
-        onActivated: root.openWordbookDialog()
-    }
-    Shortcut {
-        sequence: "Ctrl+E"
-        enabled: !root.welcomeOpen
-        onActivated: root.openExportBackupDialog()
-    }
-    Shortcut {
-        sequence: "Ctrl+Shift+I"
-        enabled: !root.welcomeOpen
-        onActivated: root.openImportBackupDialog()
-    }
-    Shortcut {
-        sequence: "Ctrl+Shift+Delete"
-        enabled: root.settingsOpen
-        onActivated: settingsDialog.resetConfirmOpen = true
-    }
-    Shortcut {
-        sequence: "Ctrl+Shift+R"
-        enabled: backend.page === "deck" && !root.modalOpen
-        onActivated: deckDetailPage.confirmReset = true
-    }
-    Shortcut {
-        sequence: "Delete"
-        enabled: backend.page === "deck" && backend.selectedDeckCustom && !root.modalOpen
-        onActivated: deckDetailPage.confirmDelete = true
-    }
     Shortcut { sequence: "Ctrl+M"; enabled: !root.modalOpen; onActivated: root.showMinimized() }
     Shortcut { sequence: "Ctrl+Shift+M"; enabled: !root.modalOpen; onActivated: root.toggleMaximize() }
     Shortcut {
@@ -418,6 +315,10 @@ ApplicationWindow {
     }
 
     function enterCurrentPage() {
+        if (backend.page === "practice" && !backend.hasSession) {
+            backend.openPage("library")
+            return
+        }
         var current = pages.children[pages.currentIndex]
         if (current && current.enter)
             current.enter()
@@ -434,7 +335,7 @@ ApplicationWindow {
         else if (backend.retrying)
             backend.submitRetry()
         else if (backend.result) {
-            if (!backend.result.correct && !backend.result.skipped)
+            if (!backend.result.correct && !backend.result.skipped && !backend.result.revealed)
                 backend.startRetry()
             else
                 backend.next()
@@ -452,7 +353,7 @@ ApplicationWindow {
         else if (backend.retrying)
             backend.submitRetry()
         else if (backend.result) {
-            if (!backend.result.correct && !backend.result.skipped) {
+            if (!backend.result.correct && !backend.result.skipped && !backend.result.revealed) {
                 backend.startRetry()
                 Qt.callLater(function() { answerInputImmersive.forceActiveFocus() })
             } else {
@@ -665,6 +566,14 @@ ApplicationWindow {
                     onClicked: root.close()
                 }
             }
+
+            Rectangle {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
+                height: 1
+                color: T.line
+            }
         }
 
         Rectangle {
@@ -755,8 +664,15 @@ ApplicationWindow {
                 Layout.fillHeight: true
                 visible: backend.page !== "practice" || !backend.hasSession
                 color: T.sidebar
-                border.width: 1
-                border.color: T.line
+                border.width: 0
+
+                Rectangle {
+                    anchors.right: parent.right
+                    anchors.top: parent.top
+                    anchors.bottom: parent.bottom
+                    width: 1
+                    color: T.line
+                }
 
                 ColumnLayout {
                     anchors.fill: parent
@@ -802,18 +718,6 @@ ApplicationWindow {
                         shortcut: "Ctrl+L"
                         active: backend.page === "library" || backend.page === "deck"
                         onClicked: backend.openPage("library")
-                    }
-                    NavButton {
-                        label: "开始练习"
-                        icon: "practice"
-                        shortcut: "Ctrl+P"
-                        active: backend.page === "practice"
-                        onClicked: {
-                            if (backend.hasSession)
-                                backend.continueSession()
-                            else
-                                backend.openPage("practice")
-                        }
                     }
                     NavButton {
                         label: "生词本"
@@ -970,7 +874,7 @@ ApplicationWindow {
 
                 Item {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: visible ? 104 : 0
+                    Layout.preferredHeight: visible ? (backend.page === "deck" ? 92 : 104) : 0
                     visible: !(backend.page === "practice" && backend.hasSession && !backend.sessionComplete)
 
                     RowLayout {
@@ -986,6 +890,7 @@ ApplicationWindow {
                             spacing: 3
 
                             RowLayout {
+                                visible: backend.page !== "deck"
                                 spacing: 7
                                 Text {
                                     text: "LEARNING SPACE"
@@ -1032,8 +937,17 @@ ApplicationWindow {
 
                         RowLayout {
                             spacing: 10
+                            TextButton {
+                                visible: backend.page === "deck"
+                                text: "返回词库"
+                                shortcut: "Esc"
+                                bordered: false
+                                Layout.alignment: Qt.AlignVCenter
+                                onClicked: backend.openPage("library")
+                            }
                             Rectangle {
                                 id: duePill
+                                visible: backend.page !== "deck"
                                 implicitHeight: 34
                                 implicitWidth: 124
                                 radius: 9
@@ -1073,8 +987,13 @@ ApplicationWindow {
                                     }
                                 }
                             }
+
+
+
+
                         }
                     }
+
                 }
 
                 Item {
@@ -1103,7 +1022,10 @@ ApplicationWindow {
                             root.enterCurrentPage()
                         }
 
-                        HomePage { id: homePage }
+                        HomePage {
+                            id: homePage
+                            onStudyWizardRequested: studyWizardDialog.openWizard(deckId)
+                        }
                         LibraryPage {
                             id: libraryPage
                             onImportRequested: root.openWordbookDialog()
@@ -1131,6 +1053,12 @@ ApplicationWindow {
                 }
             }
         }
+
+    StudyWizardDialog {
+        id: studyWizardDialog
+        parent: root.contentItem
+    }
+
 
     SettingsDialog {
         id: settingsDialog
@@ -1222,11 +1150,42 @@ ApplicationWindow {
             }
 
             AccentBar {
-                Layout.preferredWidth: 180
+                Layout.preferredWidth: 120
                 Layout.preferredHeight: 6
                 value: Number(backend.queueTotal || 0) > 0
                        ? Number(backend.queuePosition || 0) / Number(backend.queueTotal)
                        : 0
+            }
+
+            TextButton {
+                text: backend.sessionChapter >= 0
+                      ? "第 " + String(backend.sessionChapter + 1) + " 章" : ""
+                visible: backend.sessionChapter >= 0
+                onClicked: practicePage.openChapterPicker()
+            }
+            TextButton {
+                text: backend.loopSession ? "循环中" : "循环"
+                contentColor: backend.loopSession ? T.ink : T.muted
+                onClicked: backend.toggleLoop()
+            }
+            TextButton {
+                text: backend.voiceAccent === "uk" ? "英音" : "美音"
+                onClicked: backend.setVoiceAccent(backend.voiceAccent === "uk" ? "us" : "uk")
+            }
+            TextButton {
+                text: "发音"
+                onClicked: backend.speak(root.currentWord)
+            }
+            TextButton {
+                text: "默写"
+                visible: backend.currentMode === "spelling" && !backend.result && !root.hasRetryResult
+                onClicked: backend.setMode("dictation")
+            }
+            TextButton {
+                text: "跳过"
+                shortcut: "Alt+S"
+                visible: !backend.retrying && !root.hasRetryResult
+                onClicked: backend.skip()
             }
 
             TextButton {
@@ -1264,32 +1223,24 @@ ApplicationWindow {
                 onClicked: backend.revealAnswer()
             }
             TextButton {
-                text: "重新拼写"
-                shortcut: "Alt+R"
-                visible: backend.result !== null && backend.result !== undefined
-                         && backend.result.revealed === true && backend.currentMode !== "choice"
-                onClicked: {
-                    backend.startRetry()
-                    Qt.callLater(function() { answerInputImmersive.forceActiveFocus() })
-                }
+                text: "下一题"
+                shortcut: "Enter"
+                visible: root.resultRevealed
+                onClicked: root.advanceImmersive()
             }
             TextButton {
-                text: root.notebookContainsCurrent() ? "✓ 已收录" : "生词本"
+                text: root.notebookContainsCurrent() ? "✓ 已收录" : "生词"
                 shortcut: "Ctrl+D"
+                contentColor: root.notebookContainsCurrent() ? T.green : T.ink
                 onClicked: {
                     backend.toggleNotebook()
                     Qt.callLater(function() { answerInputImmersive.forceActiveFocus() })
                 }
             }
             TextButton {
-                text: "退出"
-                shortcut: "Esc"
-                onClicked: root.exitStudy()
-            }
-            TextButton {
                 text: "×"
                 shortcut: "Esc"
-                onClicked: root.handleEscapeKey()
+                onClicked: root.exitStudy()
             }
         }
 
@@ -1430,13 +1381,14 @@ ApplicationWindow {
                                 height: parent.isCurrent ? 3 : 2
                                 radius: 1.5
                                 visible: parent.isLetter
-                                color: root.hasResult
-                                       ? (parent.slotNumber < parent.typed.length
-                                          ? (root.resultCorrect ? T.green
-                                             : (parent.wrongLetter ? T.mistakeLine : T.lineStrong))
-                                          : T.line)
-                                       : (parent.isCurrent ? T.accent
-                                          : (parent.slotNumber < parent.typed.length ? T.inkSoft : T.lineStrong))
+                                color: root.resultRevealed ? T.lineStrong
+                                       : (root.hasResult
+                                          ? (parent.slotNumber < parent.typed.length
+                                             ? (root.resultCorrect ? T.green
+                                                : (parent.wrongLetter ? T.mistakeLine : T.lineStrong))
+                                             : T.line)
+                                          : (parent.isCurrent ? T.accent
+                                             : (parent.slotNumber < parent.typed.length ? T.inkSoft : T.lineStrong)))
                             }
 
                             Rectangle {
@@ -1465,12 +1417,15 @@ ApplicationWindow {
                                 anchors.bottom: slotDash.top
                                 anchors.bottomMargin: 8
                                 anchors.horizontalCenter: parent.horizontalCenter
-                                visible: parent.isLetter && parent.slotNumber < parent.typed.length
-                                text: parent.typed.charAt(parent.slotNumber) || ""
-                                color: root.hasResult
-                                       ? (root.resultCorrect ? T.green
-                                          : (parent.wrongLetter ? T.mistakeInk : T.muted))
-                                       : T.ink
+                                visible: parent.isLetter
+                                         && (root.resultRevealed || parent.slotNumber < parent.typed.length)
+                                text: root.resultRevealed ? parent.character
+                                                          : (parent.typed.charAt(parent.slotNumber) || "")
+                                color: root.resultRevealed ? T.rose
+                                       : (root.hasResult
+                                          ? (root.resultCorrect ? T.green
+                                             : (parent.wrongLetter ? T.mistakeInk : T.muted))
+                                          : T.ink)
                                 font.family: T.fontEN
                                 font.pixelSize: 42
                                 font.bold: true
@@ -1509,7 +1464,6 @@ ApplicationWindow {
                         backend.startRetry()
                         Qt.callLater(function() { answerInputImmersive.forceActiveFocus() })
                     }
-                    onCollectRequested: backend.toggleNotebook()
                 }
 
                 ColumnLayout {

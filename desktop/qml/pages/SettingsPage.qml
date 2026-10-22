@@ -241,7 +241,7 @@ Item {
                     }
                     Text {
                         Layout.fillWidth: true
-                        text: "F11 全屏；Alt+K 提示首字母；1–4 选择 A–D（仅词组选择题）；Ctrl+H/L/P/B/T 和 Ctrl+, 切换页面；Ctrl+R 发音；Ctrl+D 收藏。"
+                        text: "F11 全屏；Alt+K 提示首字母；1–4 选择 A–D（仅词组选择题）；Ctrl+H/L/P/B/T 和 Ctrl+, 切换页面；Ctrl+R 发音；Ctrl+D 加入生词本。"
                         color: T.muted
                         font.family: T.fontCN
                         font.pixelSize: 12
