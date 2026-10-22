@@ -26,6 +26,35 @@ except ImportError:  # pragma: no cover
     from version import APP_VERSION, RELEASES_API
 
 
+RELEASES_PAGE = "https://github.com/Frinds-A/Vocabulary_Studio/releases/latest"
+RELEASE_ENDPOINTS = (
+    RELEASES_API,
+    "https://gh-proxy.com/" + RELEASES_API,
+    "https://ghfast.top/" + RELEASES_API,
+    "https://ghproxy.net/" + RELEASES_API,
+)
+DOWNLOAD_PROXIES = (
+    "https://gh-proxy.com/",
+    "https://ghfast.top/",
+    "https://ghproxy.net/",
+)
+
+
+def _url_opener(use_system_proxy: bool):
+    if use_system_proxy:
+        return urllib.request.build_opener()
+    return urllib.request.build_opener(urllib.request.ProxyHandler({}))
+
+
+def _friendly_network_error(exc: Exception) -> str:
+    if isinstance(exc, urllib.error.HTTPError):
+        if exc.code == 404:
+            return "还没有发布版本"
+        if exc.code == 403:
+            return "更新服务暂时受限，请稍后再试，或手动打开下载页。"
+    return "无法连接更新服务器。请检查网络或代理是否开启；也可以手动打开下载页下载。"
+
+
 def _version_key(value: str) -> tuple[int, ...]:
     parts = [int(item) for item in re.findall(r"\d+", str(value or ""))]
     return tuple((parts + [0, 0, 0])[:4])
@@ -96,6 +125,10 @@ class Updater(QObject):
         return self._error
 
     @Property(str, notify=changed)
+    def releasePage(self):
+        return RELEASES_PAGE
+
+    @Property(str, notify=changed)
     def statusText(self):
         if self._state == "checking":
             return "正在检查更新…"
@@ -141,17 +174,27 @@ class Updater(QObject):
         threading.Thread(target=self._check_worker, args=(serial,), daemon=True).start()
 
     # ---------------------------------------------------------------- network
+    def _fetch_release(self):
+        last_error = None
+        headers = {
+            "User-Agent": "Cixu-Vocabulary-Studio-Updater",
+            "Accept": "application/vnd.github+json",
+        }
+        for endpoint in RELEASE_ENDPOINTS:
+            for use_proxy in (True, False):
+                try:
+                    request = urllib.request.Request(endpoint, headers=headers)
+                    with _url_opener(use_proxy).open(request, timeout=7) as response:
+                        payload = json.loads(response.read().decode("utf-8"))
+                    if isinstance(payload, dict) and (payload.get("tag_name") or payload.get("name")):
+                        return payload
+                except Exception as exc:  # noqa: BLE001 - try the next route
+                    last_error = exc
+        raise last_error or RuntimeError("no update route")
+
     def _check_worker(self, serial: int):
         try:
-            request = urllib.request.Request(
-                RELEASES_API,
-                headers={
-                    "User-Agent": "Cixu-Vocabulary-Studio-Updater",
-                    "Accept": "application/vnd.github+json",
-                },
-            )
-            with urllib.request.urlopen(request, timeout=18) as response:
-                payload = json.loads(response.read().decode("utf-8"))
+            payload = self._fetch_release()
             tag = str(payload.get("tag_name") or payload.get("name") or "").strip()
             latest = tag[1:] if tag.lower().startswith("v") else tag
             assets = payload.get("assets") or []
@@ -170,7 +213,7 @@ class Updater(QObject):
             notes = str(payload.get("body") or "").strip()
             if len(notes) > 5000:
                 notes = notes[:5000] + "…"
-            download_url = str(asset.get("url") or asset.get("browser_download_url") or "")
+            download_url = str(asset.get("browser_download_url") or asset.get("url") or "")
             self._check_finished.emit({
                 "status": "available",
                 "version": latest,
@@ -180,15 +223,8 @@ class Updater(QObject):
                 "notes": notes,
                 "serial": serial,
             }, "")
-        except urllib.error.HTTPError as exc:
-            message = "GitHub 返回 " + str(exc.code)
-            if exc.code == 404:
-                message = "还没有发布版本"
-            elif exc.code == 403:
-                message = "检查更新过于频繁，请稍后再试"
-            self._check_finished.emit({}, message)
         except Exception as exc:  # noqa: BLE001 - network errors are user-facing
-            self._check_finished.emit({}, "无法连接更新服务器：" + str(exc))
+            self._check_finished.emit({}, _friendly_network_error(exc))
 
     @Slot(object, str)
     def _on_check_finished(self, payload: object, error: str):
@@ -228,45 +264,56 @@ class Updater(QObject):
         threading.Thread(target=self._download_worker, daemon=True).start()
 
     def _download_worker(self):
-        try:
-            target = _update_dir() / ("词序-" + (self._latest or "new") + ".exe")
-            part = target.with_suffix(".exe.part")
-            if target.exists() and target.stat().st_size == self._download_size and self._download_size > 5_000_000:
-                self._download_finished.emit(str(target))
-                return
-            request = urllib.request.Request(
-                self._download_url,
-                headers={
-                    "User-Agent": "Cixu-Vocabulary-Studio-Updater",
-                    "Accept": "application/octet-stream",
-                },
-            )
-            digest = hashlib.sha256()
-            received = 0
-            with urllib.request.urlopen(request, timeout=30) as response, part.open("wb") as handle:
-                total = int(response.headers.get("Content-Length") or self._download_size or 0)
-                while True:
-                    chunk = response.read(262144)
-                    if not chunk:
-                        break
-                    handle.write(chunk)
-                    digest.update(chunk)
-                    received += len(chunk)
-                    if total > 0:
-                        self._download_progress.emit(min(99, int(received * 100 / total)))
-            if received < 5_000_000:
-                raise RuntimeError("下载文件不完整")
-            if self._digest.lower().startswith("sha256:"):
-                expected = self._digest.split(":", 1)[1].strip().lower()
-                if digest.hexdigest().lower() != expected:
-                    raise RuntimeError("更新包校验失败")
-            with part.open("rb") as handle:
-                if handle.read(2) != b"MZ":
-                    raise RuntimeError("下载的文件不是 Windows 程序")
-            part.replace(target)
+        target = _update_dir() / ("词序-" + (self._latest or "new") + ".exe")
+        part = target.with_suffix(".exe.part")
+        if target.exists() and target.stat().st_size == self._download_size and self._download_size > 5_000_000:
             self._download_finished.emit(str(target))
-        except Exception as exc:  # noqa: BLE001
-            self._download_failed.emit("下载失败：" + str(exc))
+            return
+        base_url = self._download_url
+        candidates = [base_url] + [proxy + base_url for proxy in DOWNLOAD_PROXIES]
+        last_error = None
+        for url in candidates:
+            for use_proxy in (True, False):
+                try:
+                    request = urllib.request.Request(
+                        url,
+                        headers={
+                            "User-Agent": "Cixu-Vocabulary-Studio-Updater",
+                            "Accept": "application/octet-stream",
+                        },
+                    )
+                    digest = hashlib.sha256()
+                    received = 0
+                    with _url_opener(use_proxy).open(request, timeout=30) as response, part.open("wb") as handle:
+                        total = int(response.headers.get("Content-Length") or self._download_size or 0)
+                        while True:
+                            chunk = response.read(262144)
+                            if not chunk:
+                                break
+                            handle.write(chunk)
+                            digest.update(chunk)
+                            received += len(chunk)
+                            if total > 0:
+                                self._download_progress.emit(min(99, int(received * 100 / total)))
+                    if received < 5_000_000:
+                        raise RuntimeError("下载文件不完整")
+                    if self._digest.lower().startswith("sha256:"):
+                        expected = self._digest.split(":", 1)[1].strip().lower()
+                        if digest.hexdigest().lower() != expected:
+                            raise RuntimeError("更新包校验失败")
+                    with part.open("rb") as handle:
+                        if handle.read(2) != b"MZ":
+                            raise RuntimeError("下载的文件不是 Windows 程序")
+                    part.replace(target)
+                    self._download_finished.emit(str(target))
+                    return
+                except Exception as exc:  # noqa: BLE001 - try the next route
+                    last_error = exc
+                    try:
+                        part.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+        self._download_failed.emit("下载失败：" + _friendly_network_error(last_error or RuntimeError("no route")))
 
     @Slot(int)
     def _on_download_progress(self, value: int):
