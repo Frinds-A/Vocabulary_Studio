@@ -41,7 +41,7 @@ Item {
     Rectangle {
         id: card
         width: Math.min(parent.width - 80, 640)
-        height: Math.min(parent.height - 80, 440)
+        height: Math.min(parent.height - 60, 500)
         anchors.centerIn: parent
         radius: 16
         color: T.white
@@ -115,16 +115,59 @@ Item {
             }
             Text {
                 Layout.fillWidth: true
-                text: "https://github.com/Frinds-A/Vocabulary_Studio"
-                color: T.accent
-                font.family: T.fontEN
-                font.pixelSize: 14
+                Layout.topMargin: 2
+                text: "开源地址"
+                color: T.ink
+                font.family: T.fontCN
+                font.pixelSize: 13
                 font.bold: true
-                wrapMode: Text.WrapAnywhere
-                MouseArea {
-                    anchors.fill: parent
-                    cursorShape: Qt.PointingHandCursor
-                    onClicked: Qt.openUrlExternally("https://github.com/Frinds-A/Vocabulary_Studio")
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Text {
+                    text: "Gitee："
+                    color: T.muted
+                    font.family: T.fontCN
+                    font.pixelSize: 12
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: "https://gitee.com/friend-a188881041351/cixu_vocabulary_studio"
+                    color: T.accent
+                    font.family: T.fontEN
+                    font.pixelSize: 13
+                    font.bold: true
+                    wrapMode: Text.WrapAnywhere
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Qt.openUrlExternally("https://gitee.com/friend-a188881041351/cixu_vocabulary_studio")
+                    }
+                }
+            }
+            RowLayout {
+                Layout.fillWidth: true
+                spacing: 4
+                Text {
+                    text: "GitHub："
+                    color: T.muted
+                    font.family: T.fontCN
+                    font.pixelSize: 12
+                }
+                Text {
+                    Layout.fillWidth: true
+                    text: "https://github.com/Frinds-A/Vocabulary_Studio"
+                    color: T.accent
+                    font.family: T.fontEN
+                    font.pixelSize: 13
+                    font.bold: true
+                    wrapMode: Text.WrapAnywhere
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: Qt.openUrlExternally("https://github.com/Frinds-A/Vocabulary_Studio")
+                    }
                 }
             }
 
