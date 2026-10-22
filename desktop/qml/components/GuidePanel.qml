@@ -104,7 +104,7 @@ Item {
                     visible: guide.current === 1
                     Text { text: "三种练习怎么选"; color: T.ink; font.family: T.fontCN; font.pixelSize: 15; font.bold: true }
                     Text { Layout.fillWidth: true; text: "拼写：看中文写英文，最扎实，适合第一次学新词。选择题：看英文选中文释义，适合词组和快速复习。听音拼写：听发音写单词，适合练辨音和复习已经见过的词。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
-                    Text { Layout.fillWidth: true; text: "每个词在一轮里会过两遍；拼错后先在原地重写，再在后续再次出现。重写不会计入正确次数，也不会降低掌握度。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
+                    Text { Layout.fillWidth: true; text: "一次答对就通过；只有拼错或选错才会在后续再次出现。拼错后先在原地重写，重写不会计入正确次数，也不会降低掌握度。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                     Text { Layout.fillWidth: true; text: "若无法回忆，可按 Alt+K 或使用「提示」查看首字母；仍无法作答时，可显示答案并重新拼写。显示答案后建议再写一遍，而不是直接进入下一题。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                     Text { Layout.fillWidth: true; text: "练习页顶部可以快速切换「默写 / 拼写」、美音 / 英音，也可以开启「单词循环」。完成页会显示本轮正确率、WPM 和用时。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                 }
