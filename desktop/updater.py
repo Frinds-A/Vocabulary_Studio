@@ -21,13 +21,14 @@ from pathlib import Path
 from PySide6.QtCore import QCoreApplication, QObject, Property, QTimer, Signal, Slot
 
 try:
-    from .version import APP_VERSION, RELEASES_API
+    from .version import APP_VERSION, GITEE_RELEASES_API, GITEE_RELEASES_PAGE, RELEASES_API
 except ImportError:  # pragma: no cover
-    from version import APP_VERSION, RELEASES_API
+    from version import APP_VERSION, GITEE_RELEASES_API, GITEE_RELEASES_PAGE, RELEASES_API
 
 
-RELEASES_PAGE = "https://github.com/Frinds-A/Vocabulary_Studio/releases/latest"
+RELEASES_PAGE = GITEE_RELEASES_PAGE
 RELEASE_ENDPOINTS = (
+    GITEE_RELEASES_API,
     RELEASES_API,
     "https://gh-proxy.com/" + RELEASES_API,
     "https://ghfast.top/" + RELEASES_API,
