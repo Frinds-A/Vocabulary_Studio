@@ -970,7 +970,8 @@ ApplicationWindow {
 
                 Item {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 104
+                    Layout.preferredHeight: visible ? 104 : 0
+                    visible: !(backend.page === "practice" && backend.hasSession && !backend.sessionComplete)
 
                     RowLayout {
                         anchors.fill: parent

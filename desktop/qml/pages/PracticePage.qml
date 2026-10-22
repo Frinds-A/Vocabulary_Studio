@@ -290,11 +290,14 @@ Item {
         // Question card
         // -------------------------------------------------------------
         Rectangle {
+            id: questionCard
+            readonly property bool activeSession: backend.hasSession && !backend.sessionComplete
             Layout.fillWidth: true
-            Layout.preferredHeight: backend.hasSession && !backend.sessionComplete ? 620 : 520
-            radius: 12
-            color: T.white
-            border.width: 1
+            Layout.preferredHeight: activeSession ? Math.max(600, practiceScroll.height - 24)
+                                                   : (backend.hasSession ? 620 : 520)
+            radius: activeSession ? 0 : 12
+            color: activeSession ? T.canvas : T.white
+            border.width: activeSession ? 0 : 1
             border.color: T.line
             clip: true
 
