@@ -522,16 +522,27 @@ Item {
                             Layout.maximumWidth: 180
                         }
                         Rectangle { width: 1; height: 18; color: T.line }
-                        Text {
+                        TextButton {
                             text: backend.sessionChapter >= 0
                                   ? "第 " + String(backend.sessionChapter + 1) + " 章" : "今日计划"
+                            visible: backend.sessionChapter >= 0
+                            onClicked: chapterPicker.open()
+                        }
+                        Text {
+                            visible: backend.sessionChapter < 0
+                            text: "今日计划"
                             color: T.inkSoft
                             font.family: T.fontCN
                             font.pixelSize: 12
                         }
+                        TextButton {
+                            visible: backend.currentMode !== "choice"
+                            text: backend.currentMode === "dictation" ? "切回拼写" : "默写"
+                            onClicked: backend.setMode(backend.currentMode === "dictation" ? "spelling" : "dictation")
+                        }
                         Text {
-                            text: backend.currentMode === "choice" ? "选择释义"
-                                  : backend.currentMode === "dictation" ? "听音拼写" : "拼写练习"
+                            visible: backend.currentMode === "choice"
+                            text: "选择释义"
                             color: T.faint
                             font.family: T.fontCN
                             font.pixelSize: 11
@@ -549,6 +560,20 @@ Item {
                             color: T.faint
                             font.family: T.fontEN
                             font.pixelSize: 10
+                        }
+
+                        TextButton {
+                            text: backend.loopSession ? "循环中" : "单词循环"
+                            contentColor: backend.loopSession ? T.ink : T.muted
+                            onClicked: backend.toggleLoop()
+                        }
+                        TextButton {
+                            text: backend.voiceAccent === "uk" ? "英音" : "美音"
+                            onClicked: backend.setVoiceAccent(backend.voiceAccent === "uk" ? "us" : "uk")
+                        }
+                        TextButton {
+                            text: "发音"
+                            onClicked: backend.speak(page.currentWord)
                         }
 
                         TextButton {
@@ -1109,6 +1134,94 @@ Item {
                     backend.next()
             }
             event.accepted = true
+        }
+    }
+
+    Popup {
+        id: chapterPicker
+        parent: page
+        width: Math.min(460, page.width - 48)
+        height: Math.min(430, page.height - 80)
+        x: (page.width - width) / 2
+        y: 92
+        padding: 0
+        modal: false
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            radius: 12
+            color: T.white
+            border.width: 1
+            border.color: T.lineStrong
+        }
+
+        contentItem: ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 18
+            spacing: 10
+
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    text: "章节切换"
+                    color: T.ink
+                    font.family: T.fontCN
+                    font.pixelSize: 15
+                    font.bold: true
+                }
+                Item { Layout.fillWidth: true }
+                TextButton {
+                    text: "关闭"
+                    onClicked: chapterPicker.close()
+                }
+            }
+
+            GridView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                cellWidth: 100
+                cellHeight: 54
+                model: backend.chapterRows || []
+                ScrollBar.vertical: AppScrollBar { policy: ScrollBar.AsNeeded }
+
+                delegate: Rectangle {
+                    width: 94
+                    height: 48
+                    radius: 8
+                    color: modelData.current ? T.neutralPale : T.white
+                    border.width: 1
+                    border.color: modelData.current ? T.ink : T.line
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: {
+                            backend.startChapter(Number(modelData.index))
+                            chapterPicker.close()
+                        }
+                    }
+                    Column {
+                        anchors.centerIn: parent
+                        spacing: 1
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: String(modelData.label)
+                            color: T.ink
+                            font.family: T.fontCN
+                            font.pixelSize: 11
+                            font.bold: modelData.current
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: modelData.status === "done" ? "已完成"
+                                  : (modelData.status === "active" ? "学习中" : "未开始")
+                            color: modelData.status === "done" ? T.green : T.faint
+                            font.family: T.fontCN
+                            font.pixelSize: 9
+                        }
+                    }
+                }
+            }
         }
     }
 

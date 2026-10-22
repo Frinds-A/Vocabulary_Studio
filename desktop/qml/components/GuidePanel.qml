@@ -92,7 +92,7 @@ Item {
                     Text { Layout.fillWidth: true; text: "拼写：看中文写英文，最扎实，适合第一次学新词。选择题：看英文选中文释义，适合词组和快速复习。听音拼写：听发音写单词，适合练辨音和复习已经见过的词。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                     Text { Layout.fillWidth: true; text: "每个词在一轮里会过两遍；拼错后先在原地重写，再在后续再次出现。重写不会计入正确次数，也不会降低掌握度。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                     Text { Layout.fillWidth: true; text: "若无法回忆，可按 Alt+K 或使用「提示」查看首字母；仍无法作答时，可显示答案并重新拼写。显示答案后建议再写一遍，而不是直接进入下一题。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
-                    Text { Layout.fillWidth: true; text: "完成页会显示本轮正确率、WPM 和用时，帮助你了解本轮的学习情况。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
+                    Text { Layout.fillWidth: true; text: "练习页顶部可以快速切换「默写 / 拼写」、美音 / 英音，也可以开启「单词循环」。完成页会显示本轮正确率、WPM 和用时。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                 }
 
                 // 3. 章节与生词本
@@ -104,7 +104,7 @@ Item {
                     Text { Layout.fillWidth: true; text: "每章是一小段学习任务。完成一章后可以点「下一章」继续，或点「默写本章」把这一章的单词再听写一遍。章节大小在「设置 → 通用 → 章节练习」中调整。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                     Text { Layout.fillWidth: true; text: "答错的词会自动加入生词本，方便之后集中复习；生词本中的词可以随时移除或重新学习。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                     Text { Layout.fillWidth: true; text: "生词本是手动收藏的词；「熟词」是累计答对 2 次的词，也可以把熟词重新标为生词。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
-                    Text { Layout.fillWidth: true; text: "学习范围可以选「新词 + 复习」「只学新词」「只复习」；「随机混合」会从当前词库随机抽一章。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
+                    Text { Layout.fillWidth: true; text: "学习范围可以选「新词 + 复习」「只学新词」「只复习」；「随机混合」会从当前词库随机抽一章。开启「单词循环」后，本轮结束后会自动从本轮第一个词重新开始。"; color: T.muted; font.family: T.fontCN; font.pixelSize: 12; wrapMode: Text.WordWrap; lineHeight: 1.55 }
                 }
 
                 // 4. 复习与统计

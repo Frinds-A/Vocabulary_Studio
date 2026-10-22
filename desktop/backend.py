@@ -123,6 +123,7 @@ def _default_state() -> dict[str, Any]:
                      "voiceAccent": "us", "autoCheckUpdates": True,
                      "chapterMode": True, "chapterSize": 20, "studyScope": "mix",
                      "inputSound": True, "speechRate": 0.0, "autoBackup": True,
+                     "loopSession": False,
                      "welcomeSeen": False, "welcomeVersion": ""},
         "progress": {},
         "attempts": [],
@@ -212,7 +213,7 @@ class StudyBackend(QObject):
             state["settings"].update({key: bool(saved["settings"][key])
                                       for key in ("autoSpeak", "spacedRepetition", "includeNotebook",
                                                   "autoCheckUpdates", "chapterMode", "inputSound",
-                                                  "autoBackup", "welcomeSeen")
+                                                  "autoBackup", "loopSession", "welcomeSeen")
                                       if key in saved["settings"]})
             if isinstance(saved["settings"].get("welcomeVersion"), str):
                 state["settings"]["welcomeVersion"] = saved["settings"]["welcomeVersion"]
@@ -987,6 +988,16 @@ class StudyBackend(QObject):
     @Property(bool, notify=stateChanged)
     def inputSound(self):
         return bool(self._state.get("settings", {}).get("inputSound", True))
+
+    @Property(bool, notify=stateChanged)
+    def loopSession(self):
+        return bool(self._state.get("settings", {}).get("loopSession", False))
+
+    @Slot()
+    def toggleLoop(self):
+        self._state.setdefault("settings", {})["loopSession"] = not self.loopSession
+        self._emit_changed()
+        self._status("单词循环已开启" if self.loopSession else "单词循环已关闭")
 
     @Property(float, notify=stateChanged)
     def speechRate(self):
@@ -1810,6 +1821,10 @@ class StudyBackend(QObject):
         session["retryWrong"] = False
         session.pop("choices", None)
         self.answerChanged.emit()
+        if session["position"] >= len(session["ids"]) and self.loopSession:
+            session["position"] = 0
+            session["loops"] = _safe_int(session.get("loops"), 0, 0, 1_000_000) + 1
+            self._status("本轮完成，继续循环")
         self._emit_changed()
         if session["position"] >= len(session["ids"]):
             self._status("本轮完成，做得很好")
@@ -1913,7 +1928,7 @@ class StudyBackend(QObject):
     @Slot(str, "QVariant")
     def saveSetting(self, key: str, value: Any):
         if key in {"autoSpeak", "spacedRepetition", "includeNotebook", "autoCheckUpdates",
-                   "chapterMode", "inputSound", "autoBackup"}:
+                   "chapterMode", "inputSound", "autoBackup", "loopSession"}:
             self._state["settings"][key] = bool(value)
             self._emit_changed()
         elif key == "dailyGoal":
