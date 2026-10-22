@@ -112,9 +112,10 @@ Item {
                               : "本次更新包含问题修复与体验改进。"
                         color: T.inkSoft
                         font.family: T.fontCN
-                        font.pixelSize: 11
-                        lineHeight: 1.5
+                        font.pixelSize: 12
+                        lineHeight: 1.45
                         wrapMode: Text.WordWrap
+                        textFormat: Text.MarkdownText
                     }
                 }
             }

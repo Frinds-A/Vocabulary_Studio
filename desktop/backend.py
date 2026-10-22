@@ -1982,9 +1982,9 @@ class StudyBackend(QObject):
         self._status("已退出练习，进度已保留")
 
     def _speak_first_word(self, entries: list[dict[str, Any]]) -> None:
-        # Dictation handles playback in QML on every newly displayed word.
-        if entries and self.currentMode == "spelling":
-            self.speak(entries[0].get("word", ""))
+        # Spelling must never read the answer before the user has typed it.
+        # Dictation playback is handled by QML on every newly displayed word.
+        return
 
     def _remember_mistake(self, entry: dict[str, Any]) -> None:
         """Automatically keep a missed word in the notebook."""
