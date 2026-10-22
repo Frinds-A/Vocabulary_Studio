@@ -296,6 +296,11 @@ ApplicationWindow {
         enabled: !root.modalOpen && backend.page === "home"
         onActivated: backend.setMode("dictation")
     }
+    Shortcut {
+        sequence: backend.forgotShortcut
+        enabled: !root.modalOpen && backend.page === "practice" && backend.hasSession && backend.retrying
+        onActivated: backend.forgotAnswer()
+    }
     Shortcut { sequence: "Ctrl+H"; enabled: !root.modalOpen; onActivated: backend.openPage("home") }
     Shortcut { sequence: "Ctrl+L"; enabled: !root.modalOpen; onActivated: backend.openPage("library") }
     Shortcut { sequence: "Ctrl+P"; enabled: !root.modalOpen; onActivated: root.openPracticeShortcut() }
