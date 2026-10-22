@@ -7,6 +7,7 @@ import "../components"
 Item {
     id: page
     property bool reveal: false
+    property string pickerQuery: ""
     property real accuracy: Number((backend.stats && backend.stats.accuracy) || 0)
     readonly property int studyMinutes: Math.floor(Number(backend.studySeconds || 0) / 60)
     function studyTimeText() {
@@ -14,6 +15,20 @@ Item {
         if (minutes < 60)
             return String(minutes) + " min"
         return String(Math.floor(minutes / 60)) + "h " + String(minutes % 60) + "min"
+    }
+
+    function pickerDecks() {
+        var source = backend.decks || []
+        var needle = page.pickerQuery.trim().toLowerCase()
+        if (!needle)
+            return source
+        var result = []
+        for (var i = 0; i < source.length; ++i) {
+            var deck = source[i]
+            if ((String(deck.name || "") + " " + String(deck.exam || "") + " " + String(deck.type || "")).toLowerCase().indexOf(needle) >= 0)
+                result.push(deck)
+        }
+        return result
     }
 
     function enter() {
@@ -268,7 +283,7 @@ Item {
 
             Rectangle {
                 Layout.fillWidth: true
-                Layout.preferredHeight: Math.max(360, 150 + ((backend.decks || []).length * 50))
+                Layout.preferredHeight: 410
                 radius: 12
                 color: T.white
                 border.width: 1
@@ -289,6 +304,10 @@ Item {
                             font.bold: true
                         }
                         Item { Layout.fillWidth: true }
+                        TextButton {
+                            text: "选择词书"
+                            onClicked: statsDeckPicker.open()
+                        }
                         Text {
                             text: "MASTERY"
                             color: T.faint
@@ -304,7 +323,7 @@ Item {
                         spacing: 16
 
                         Repeater {
-                            model: backend.decks || []
+                            model: backend.statsDecks || []
                             delegate: Item {
                                 id: deckRow
                                 Layout.fillWidth: true
@@ -376,4 +395,139 @@ Item {
             }
         }
     }
+
+    Popup {
+        id: statsDeckPicker
+        parent: page
+        width: Math.min(520, parent.width - 60)
+        height: Math.min(620, parent.height - 80)
+        x: (parent.width - width) / 2
+        y: (parent.height - height) / 2
+        padding: 0
+        modal: true
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+
+        background: Rectangle {
+            radius: 14
+            color: T.white
+        }
+
+        contentItem: ColumnLayout {
+            anchors.fill: parent
+            anchors.margins: 20
+            spacing: 12
+
+            RowLayout {
+                Layout.fillWidth: true
+                Text {
+                    text: "选择展示的词书"
+                    color: T.ink
+                    font.family: T.fontCN
+                    font.pixelSize: 18
+                    font.bold: true
+                }
+                Item { Layout.fillWidth: true }
+                Text {
+                    text: "5 本"
+                    color: T.muted
+                    font.family: T.fontCN
+                    font.pixelSize: 11
+                }
+                Text {
+                    text: "×"
+                    color: T.muted
+                    font.family: T.fontCN
+                    font.pixelSize: 22
+                    MouseArea {
+                        anchors.fill: parent
+                        anchors.margins: -8
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: statsDeckPicker.close()
+                    }
+                }
+            }
+
+            Text {
+                Layout.fillWidth: true
+                text: "点击新词书会替换最早选择的一本"
+                color: T.faint
+                font.family: T.fontCN
+                font.pixelSize: 11
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 36
+                radius: 18
+                color: T.white
+                border.width: 1
+                border.color: statsSearch.activeFocus ? T.ink : T.line
+                TextField {
+                    id: statsSearch
+                    anchors.fill: parent
+                    anchors.leftMargin: 14
+                    anchors.rightMargin: 14
+                    padding: 0
+                    color: T.ink
+                    placeholderText: "搜索词书"
+                    placeholderTextColor: T.faint
+                    font.family: T.fontCN
+                    font.pixelSize: 12
+                    verticalAlignment: TextInput.AlignVCenter
+                    background: Rectangle { color: "transparent" }
+                    text: page.pickerQuery
+                    onTextChanged: page.pickerQuery = text
+                }
+            }
+
+            ListView {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                spacing: 2
+                model: page.pickerDecks()
+                ScrollBar.vertical: AppScrollBar { policy: ScrollBar.AsNeeded }
+
+                delegate: Rectangle {
+                    readonly property bool selected: (backend.statsDeckIds || []).indexOf(String(modelData.id)) >= 0
+                    width: ListView.view.width
+                    height: 46
+                    radius: 7
+                    color: selected ? T.neutralPale : (statsHover.hovered ? T.neutralPale : "transparent")
+                    HoverHandler { id: statsHover; cursorShape: Qt.PointingHandCursor }
+                    TapHandler {
+                        onTapped: {
+                            backend.selectStatsDeck(String(modelData.id))
+                            statsDeckPicker.close()
+                        }
+                    }
+                    Text {
+                        anchors.left: parent.left
+                        anchors.leftMargin: 12
+                        anchors.right: selectedMark.left
+                        anchors.rightMargin: 10
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: String(modelData.name || "")
+                        color: T.ink
+                        font.family: T.fontCN
+                        font.pixelSize: 12
+                        elide: Text.ElideRight
+                    }
+                    Text {
+                        id: selectedMark
+                        visible: parent.selected
+                        anchors.right: parent.right
+                        anchors.rightMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        text: "✓"
+                        color: T.ink
+                        font.family: T.fontCN
+                        font.pixelSize: 14
+                        font.bold: true
+                    }
+                }
+            }
+        }
+    }
+
 }

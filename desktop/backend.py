@@ -138,6 +138,7 @@ def _default_state() -> dict[str, Any]:
         "notebook": [],
         "favoriteDecks": [],
         "recentDecks": [],
+        "statsDeckIds": [],
         "lastChapters": {},
         "customBooks": [],
         "session": None,
@@ -183,6 +184,7 @@ class StudyBackend(QObject):
         self._history: list[dict[str, Any]] = []
         self._refresh_index()
         self._sanitize_deck_selection()
+        self._sanitize_stats_decks()
         self._sanitize_session()
         self._tts = None
         self._input_sound = None
@@ -221,6 +223,9 @@ class StudyBackend(QObject):
         selected_ids = [str(item) for item in selected_ids if isinstance(item, str) and item]
         state["selectedDeckIds"] = selected_ids or [state["selectedDeckId"]]
         state["selectedDeckId"] = state["selectedDeckIds"][0]
+        stats_ids = saved.get("statsDeckIds")
+        if isinstance(stats_ids, list):
+            state["statsDeckIds"] = [str(item) for item in stats_ids if isinstance(item, str) and item][:5]
         state["mode"] = saved.get("mode") if saved.get("mode") in {"spelling", "choice", "dictation"} else "spelling"
         if isinstance(saved.get("dailyGoals"), dict):
             state["dailyGoals"].update({key: _safe_int(value, DEFAULT_DAILY_GOALS[key], 1, 200)
@@ -418,6 +423,22 @@ class StudyBackend(QObject):
         self._state["selectedDeckId"] = normalized[0] if normalized else ""
         if not (word_id and phrase_id):
             self._state.setdefault("settings", {})["includeNotebook"] = False
+
+    def _sanitize_stats_decks(self) -> None:
+        all_decks = self._all_decks()
+        all_ids = [str(deck["id"]) for deck in all_decks]
+        valid = set(all_ids)
+        selected = []
+        for item in self._state.get("statsDeckIds", []):
+            deck_id = str(item)
+            if deck_id in valid and deck_id not in selected:
+                selected.append(deck_id)
+        for deck_id in all_ids:
+            if len(selected) >= 5:
+                break
+            if deck_id not in selected:
+                selected.append(deck_id)
+        self._state["statsDeckIds"] = selected[:5]
 
     def _clear_session_for_deck_change(self) -> None:
         if self._state.get("session") is not None:
@@ -642,6 +663,17 @@ class StudyBackend(QObject):
     @Property("QVariantList", notify=stateChanged)
     def decks(self):
         return self._all_decks()
+
+    @Property("QVariantList", notify=stateChanged)
+    def statsDecks(self):
+        self._sanitize_stats_decks()
+        by_id = {str(deck["id"]): deck for deck in self._all_decks()}
+        return [by_id[item] for item in self._state.get("statsDeckIds", []) if item in by_id][:5]
+
+    @Property("QVariantList", notify=stateChanged)
+    def statsDeckIds(self):
+        self._sanitize_stats_decks()
+        return list(self._state.get("statsDeckIds", []))[:5]
 
     @Property("QVariantList", notify=stateChanged)
     def recentDecks(self):
@@ -1287,6 +1319,20 @@ class StudyBackend(QObject):
             self._state["selectedDeckIds"] = [deck_id]
             self._emit_changed()
             self.goalsChanged.emit()
+
+    @Slot(str)
+    def selectStatsDeck(self, deck_id: str):
+        if not any(deck["id"] == deck_id for deck in self._all_decks()):
+            return
+        self._sanitize_stats_decks()
+        selected = list(self._state.get("statsDeckIds", []))
+        if deck_id in selected:
+            return
+        if len(selected) >= 5:
+            selected.pop(0)
+        selected.append(deck_id)
+        self._state["statsDeckIds"] = selected[:5]
+        self._emit_changed()
 
     @Slot(str)
     def openDeck(self, deck_id: str):
