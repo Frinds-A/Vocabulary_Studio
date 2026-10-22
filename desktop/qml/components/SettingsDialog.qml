@@ -621,15 +621,7 @@ Item {
                                             spacing: 3
                                             Text {
                                                 Layout.fillWidth: true
-                                                text: "这个词序是我一个人独立开发的，没有团队，也没有广告。"
-                                                color: T.ink
-                                                font.family: T.fontCN
-                                                font.pixelSize: 11
-                                                font.bold: true
-                                            }
-                                            Text {
-                                                Layout.fillWidth: true
-                                                text: "源码在 GitHub 上；如果它帮你多记住了一个词，欢迎去点一颗 Star，喵！QAQ"
+                                                text: "源码在 GitHub 上。如果它帮你多记住了一个词，欢迎去点一颗 Star 喵！QAQ"
                                                 color: T.inkSoft
                                                 font.family: T.fontCN
                                                 font.pixelSize: 11

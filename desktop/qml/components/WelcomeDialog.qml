@@ -173,7 +173,7 @@ Item {
 
                     Rectangle {
                         Layout.fillWidth: true
-                        Layout.preferredHeight: 104
+                        Layout.preferredHeight: 88
                         radius: 12
                         color: T.neutralPale
                         border.width: 1
@@ -200,14 +200,6 @@ Item {
                             ColumnLayout {
                                 Layout.fillWidth: true
                                 spacing: 3
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: "词序是我一个人慢慢做出来的。"
-                                    color: T.ink
-                                    font.family: T.fontCN
-                                    font.pixelSize: 12
-                                    font.bold: true
-                                }
                                 Text {
                                     Layout.fillWidth: true
                                     text: "源码放在 GitHub 上；如果它帮你多记住了一个词，求各位大人点一颗 Star 喵！QAQ"
