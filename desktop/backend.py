@@ -1371,8 +1371,6 @@ class StudyBackend(QObject):
 
     @Slot(int)
     def startStudyChapter(self, index: int):
-        self._state["mode"] = "spelling"
-        self._state.setdefault("settings", {})["mode"] = "spelling"
         deck_id = str(self._state.get("selectedDeckId", ""))
         recents = [item for item in self._state.get("recentDecks", []) if item != deck_id]
         if deck_id:
@@ -1382,8 +1380,6 @@ class StudyBackend(QObject):
 
     @Slot()
     def continueStudy(self):
-        self._state["mode"] = "spelling"
-        self._state.setdefault("settings", {})["mode"] = "spelling"
         session = self._state.get("session")
         if session and session.get("ids") and session.get("position", 0) < len(session["ids"]):
             self.continueSession()
@@ -1947,7 +1943,7 @@ class StudyBackend(QObject):
             return
         if not _normalise_answer(session.get("answer")):
             return
-        correct = _normalise_answer(session.get("answer")) == _normalise_answer(current["word"])
+        correct = _spelling_key(session.get("answer")) == _spelling_key(current["word"])
         # This retry is deliberately practice-only: it never changes
         # correctCount, mastery, review dates, attempts or accuracy.
         if correct:
