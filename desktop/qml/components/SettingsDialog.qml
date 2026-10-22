@@ -590,58 +590,34 @@ Item {
                                     font.bold: true
                                 }
 
-                                Rectangle {
+                                Text {
                                     Layout.fillWidth: true
-                                    Layout.preferredHeight: 96
-                                    radius: 12
-                                    color: T.neutralPale
-                                    border.width: 1
-                                    border.color: T.lineStrong
-
-                                    RowLayout {
+                                    text: "关于源码"
+                                    color: T.ink
+                                    font.family: T.fontCN
+                                    font.pixelSize: 13
+                                    font.bold: true
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: "源码在 GitHub 上。如果它帮你多记住了一个词，欢迎去点一颗 Star 喵！QAQ"
+                                    color: T.muted
+                                    font.family: T.fontCN
+                                    font.pixelSize: 11
+                                    wrapMode: Text.WordWrap
+                                    lineHeight: 1.5
+                                }
+                                Text {
+                                    Layout.fillWidth: true
+                                    text: "https://github.com/Frinds-A/Vocabulary_Studio"
+                                    color: T.accent
+                                    font.family: T.fontEN
+                                    font.pixelSize: 10
+                                    wrapMode: Text.WrapAnywhere
+                                    MouseArea {
                                         anchors.fill: parent
-                                        anchors.margins: 14
-                                        spacing: 12
-
-                                        Rectangle {
-                                            width: 34
-                                            height: 34
-                                            radius: 17
-                                            color: T.ink
-                                            Text {
-                                                anchors.centerIn: parent
-                                                text: "★"
-                                                color: T.white
-                                                font.family: T.fontEN
-                                                font.pixelSize: 16
-                                            }
-                                        }
-                                        ColumnLayout {
-                                            Layout.fillWidth: true
-                                            spacing: 3
-                                            Text {
-                                                Layout.fillWidth: true
-                                                text: "源码在 GitHub 上。如果它帮你多记住了一个词，欢迎去点一颗 Star 喵！QAQ"
-                                                color: T.inkSoft
-                                                font.family: T.fontCN
-                                                font.pixelSize: 11
-                                                wrapMode: Text.WordWrap
-                                                lineHeight: 1.45
-                                            }
-                                            Text {
-                                                Layout.fillWidth: true
-                                                text: "github.com/Frinds-A/Vocabulary_Studio"
-                                                color: T.accent
-                                                font.family: T.fontEN
-                                                font.pixelSize: 10
-                                                elide: Text.ElideRight
-                                                MouseArea {
-                                                    anchors.fill: parent
-                                                    cursorShape: Qt.PointingHandCursor
-                                                    onClicked: Qt.openUrlExternally("https://github.com/Frinds-A/Vocabulary_Studio")
-                                                }
-                                            }
-                                        }
+                                        cursorShape: Qt.PointingHandCursor
+                                        onClicked: Qt.openUrlExternally("https://github.com/Frinds-A/Vocabulary_Studio")
                                     }
                                 }
 

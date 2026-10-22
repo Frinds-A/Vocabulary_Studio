@@ -34,40 +34,38 @@ Item {
     Rectangle {
         anchors.fill: parent
         color: "#4A111111"
-
         MouseArea { anchors.fill: parent }
     }
 
     Rectangle {
         id: card
-        objectName: "welcomeCard"
-        width: Math.min(parent.width - 80, 700)
-        height: Math.min(parent.height - 48, 690)
+        width: Math.min(parent.width - 80, 660)
+        height: Math.min(parent.height - 80, 480)
         anchors.centerIn: parent
-        radius: 18
+        radius: 16
         color: T.white
         border.width: 1
         border.color: T.line
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.leftMargin: 36
-            anchors.rightMargin: 36
-            anchors.topMargin: 28
-            anchors.bottomMargin: 26
-            spacing: 12
+            anchors.leftMargin: 30
+            anchors.rightMargin: 30
+            anchors.topMargin: 24
+            anchors.bottomMargin: 22
+            spacing: 10
 
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 10
 
                 Text {
+                    Layout.fillWidth: true
                     text: "欢迎使用 词序"
                     color: T.ink
                     font.family: T.fontCN
-                    font.pixelSize: 22
+                    font.pixelSize: 21
                     font.bold: true
-                    Layout.fillWidth: true
                 }
                 Text {
                     text: "×"
@@ -81,33 +79,128 @@ Item {
                         onClicked: dialog.closeDialog()
                     }
                 }
-                AppButton {
-                    text: "开始学习"
-                    shortcut: "Enter"
-                    primary: true
-                    restoreStyle: true
-                    implicitWidth: 94
-                    implicitHeight: 32
-                    fontSize: 12
-                    radiusValue: 8
-                    onClicked: dialog.finish()
-                }
             }
 
             Text {
                 Layout.fillWidth: true
-                text: "一份安静、离线的单词练习空间。"
+                text: "一份安静、离线的单词练习空间"
                 color: T.muted
                 font.family: T.fontCN
-                font.pixelSize: 12
+                font.pixelSize: 11
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 1
+                color: T.line
+            }
+
+            Flickable {
+                Layout.fillWidth: true
+                Layout.fillHeight: true
+                clip: true
+                contentWidth: width
+                contentHeight: body.implicitHeight
+                boundsBehavior: Flickable.StopAtBounds
+                ScrollBar.vertical: AppScrollBar { policy: ScrollBar.AsNeeded }
+
+                ColumnLayout {
+                    id: body
+                    width: parent.width - 12
+                    spacing: 9
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: "关于更新与源码"
+                        color: T.ink
+                        font.family: T.fontCN
+                        font.pixelSize: 13
+                        font.bold: true
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: "学习和发音都可以离线使用；只有检查更新、下载新版本需要联网。更新会在软件内完成，不需要跳转浏览器。"
+                        color: T.muted
+                        font.family: T.fontCN
+                        font.pixelSize: 11
+                        wrapMode: Text.WordWrap
+                        lineHeight: 1.5
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: "源码：https://github.com/Frinds-A/Vocabulary_Studio"
+                        color: T.accent
+                        font.family: T.fontEN
+                        font.pixelSize: 11
+                        wrapMode: Text.WrapAnywhere
+                        MouseArea {
+                            anchors.fill: parent
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: Qt.openUrlExternally("https://github.com/Frinds-A/Vocabulary_Studio")
+                        }
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: "如果词序帮你多记住了一个词，求各位大人点一颗 Star 喵！QAQ"
+                        color: T.inkSoft
+                        font.family: T.fontCN
+                        font.pixelSize: 11
+                        wrapMode: Text.WordWrap
+                        lineHeight: 1.5
+                    }
+
+                    Rectangle {
+                        Layout.fillWidth: true
+                        Layout.topMargin: 3
+                        Layout.preferredHeight: 1
+                        color: T.line
+                    }
+
+                    Text {
+                        Layout.fillWidth: true
+                        text: "怎么学"
+                        color: T.ink
+                        font.family: T.fontCN
+                        font.pixelSize: 13
+                        font.bold: true
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: "每天先复习到期词，再学新词。每个词会过两遍；拼错后先看正确答案和例句，再重写直到正确。卡住时可以点「提示」，也可以点「显示答案」后重新拼写。"
+                        color: T.muted
+                        font.family: T.fontCN
+                        font.pixelSize: 11
+                        wrapMode: Text.WordWrap
+                        lineHeight: 1.5
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        text: "完整操作和快捷键可在「偏好设置 → 使用说明」中查看。"
+                        color: T.faint
+                        font.family: T.fontCN
+                        font.pixelSize: 10
+                        wrapMode: Text.WordWrap
+                    }
+                    Text {
+                        Layout.fillWidth: true
+                        Layout.topMargin: 2
+                        text: "—— Petrichor"
+                        color: T.muted
+                        font.family: T.fontEN
+                        font.pixelSize: 12
+                        font.italic: true
+                        horizontalAlignment: Text.AlignRight
+                    }
+                }
             }
 
             RowLayout {
                 Layout.fillWidth: true
-                spacing: 8
+                spacing: 10
+
                 Rectangle {
-                    width: 18
-                    height: 18
+                    width: 17
+                    height: 17
                     radius: 4
                     color: dialog.remember ? T.ink : T.white
                     border.width: 1
@@ -118,7 +211,7 @@ Item {
                         text: "✓"
                         color: T.white
                         font.family: T.fontEN
-                        font.pixelSize: 11
+                        font.pixelSize: 10
                         font.bold: true
                     }
                     MouseArea {
@@ -144,152 +237,20 @@ Item {
                         }
                     }
                 }
+
                 Item { Layout.fillWidth: true }
-            }
 
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.preferredHeight: 1
-                color: T.line
-            }
-
-            Item {
-                Layout.fillWidth: true
-                Layout.fillHeight: true
-                objectName: "welcomeScroll"
-
-                Flickable {
-                    anchors.fill: parent
-                    clip: true
-                    contentWidth: width
-                    contentHeight: welcomeBody.implicitHeight
-                    boundsBehavior: Flickable.StopAtBounds
-                    ScrollBar.vertical: AppScrollBar { policy: ScrollBar.AsNeeded }
-
-                    ColumnLayout {
-                        id: welcomeBody
-                        width: parent.width - 12
-                        spacing: 12
-
-                    Rectangle {
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: 88
-                        radius: 12
-                        color: T.neutralPale
-                        border.width: 1
-                        border.color: T.lineStrong
-
-                        RowLayout {
-                            anchors.fill: parent
-                            anchors.margins: 14
-                            spacing: 12
-
-                            Rectangle {
-                                width: 38
-                                height: 38
-                                radius: 19
-                                color: T.ink
-                                Text {
-                                    anchors.centerIn: parent
-                                    text: "★"
-                                    color: T.white
-                                    font.family: T.fontEN
-                                    font.pixelSize: 18
-                                }
-                            }
-                            ColumnLayout {
-                                Layout.fillWidth: true
-                                spacing: 3
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: "源码放在 GitHub 上；如果它帮你多记住了一个词，求各位大人点一颗 Star 喵！QAQ"
-                                    color: T.inkSoft
-                                    font.family: T.fontCN
-                                    font.pixelSize: 11
-                                    wrapMode: Text.WordWrap
-                                    lineHeight: 1.45
-                                }
-                                Text {
-                                    Layout.fillWidth: true
-                                    text: "github.com/Frinds-A/Vocabulary_Studio"
-                                    color: T.accent
-                                    font.family: T.fontEN
-                                    font.pixelSize: 10
-                                    elide: Text.ElideRight
-                                    MouseArea {
-                                        anchors.fill: parent
-                                        cursorShape: Qt.PointingHandCursor
-                                        onClicked: Qt.openUrlExternally("https://github.com/Frinds-A/Vocabulary_Studio")
-                                    }
-                                }
-                            }
-                        }
-                    }
-
-                    Text {
-                        Layout.fillWidth: true
-                        text: "怎么学"
-                color: T.ink
-                font.family: T.fontCN
-                font.pixelSize: 14
-                font.bold: true
-            }
-            Text {
-                Layout.fillWidth: true
-                text: "每天从今日计划开始：先复习到期单词，再学新词。每个单词会过两遍；拼错后先看正确答案和例句，再重写直到正确；重写时可以点「忘记了」自动补全。"
-                color: T.muted
-                font.family: T.fontCN
-                font.pixelSize: 12
-                wrapMode: Text.WordWrap
-                lineHeight: 1.55
-            }
-            Text {
-                Layout.fillWidth: true
-                Layout.topMargin: 2
-                text: "完整操作和快捷键可在「偏好设置 → 使用说明」中随时查看。"
-                color: T.muted
-                font.family: T.fontCN
-                font.pixelSize: 11
-                wrapMode: Text.WordWrap
-                lineHeight: 1.45
-            }
-
-            Rectangle {
-                Layout.fillWidth: true
-                Layout.topMargin: 2
-                Layout.preferredHeight: 1
-                color: T.line
-            }
-
-            Text {
-                Layout.fillWidth: true
-                text: "关于更新"
-                color: T.ink
-                font.family: T.fontCN
-                font.pixelSize: 14
-                font.bold: true
-            }
-            Text {
-                Layout.fillWidth: true
-                text: "学习和发音都可以离线使用；只有检查更新、下载新版本需要联网。更新会在软件内完成，不会跳转浏览器。"
-                color: T.muted
-                font.family: T.fontCN
-                font.pixelSize: 11
-                wrapMode: Text.WordWrap
-                lineHeight: 1.45
-            }
-
-            Text {
-                Layout.fillWidth: true
-                text: "—— Petrichor"
-                color: T.muted
-                font.family: T.fontEN
-                font.pixelSize: 13
-                font.italic: true
-                horizontalAlignment: Text.AlignRight
-            }
+                AppButton {
+                    text: "开始学习"
+                    shortcut: "Enter"
+                    primary: true
+                    restoreStyle: true
+                    implicitWidth: 104
+                    implicitHeight: 34
+                    fontSize: 12
+                    radiusValue: 8
+                    onClicked: dialog.finish()
                 }
-            }
             }
         }
     }
