@@ -160,6 +160,37 @@ Item {
                                 onClicked: backend.continueStudy()
                             }
                             Item { Layout.fillWidth: true }
+                            RowLayout {
+                                Layout.alignment: Qt.AlignVCenter
+                                spacing: 5
+                                Repeater {
+                                    model: [
+                                        { label: "拼写", id: "spelling" },
+                                        { label: "选择", id: "choice" },
+                                        { label: "听写", id: "dictation" }
+                                    ]
+                                    delegate: Rectangle {
+                                        readonly property bool selected: backend.mode === modelData.id
+                                        implicitWidth: 50
+                                        implicitHeight: 30
+                                        radius: 8
+                                        color: selected ? T.ink : "transparent"
+                                        border.width: 1
+                                        border.color: selected ? T.ink : T.line
+                                        Layout.alignment: Qt.AlignVCenter
+                                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                                        TapHandler { onTapped: backend.setMode(String(modelData.id)) }
+                                        Text {
+                                            anchors.centerIn: parent
+                                            text: String(modelData.label)
+                                            color: selected ? T.white : T.muted
+                                            font.family: T.fontCN
+                                            font.pixelSize: 11
+                                            font.bold: selected
+                                        }
+                                    }
+                                }
+                            }
                             Rectangle {
                                 id: scopePill
                                 implicitHeight: 30
