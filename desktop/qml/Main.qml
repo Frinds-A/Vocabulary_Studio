@@ -1594,7 +1594,10 @@ ApplicationWindow {
             }
             maximumLength: root.currentWord.length
             text: backend.answer || ""
-            onTextEdited: backend.setAnswer(text)
+            onTextEdited: {
+                backend.playInputSound()
+                backend.setAnswer(text)
+            }
             onAccepted: root.handleImmersiveEnter()
             Keys.onPressed: function(event) {
                 if (event.key === Qt.Key_F11) {

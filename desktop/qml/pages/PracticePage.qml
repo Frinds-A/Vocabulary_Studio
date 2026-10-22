@@ -10,6 +10,12 @@ Item {
     property bool hadResult: false
     readonly property string currentWord: backend.current ? String(backend.current.word || "") : ""
     property real promptOpacity: 1
+
+    function durationText(seconds) {
+        var s = Math.max(0, Number(seconds || 0))
+        var m = Math.floor(s / 60)
+        return m > 0 ? (m + " 分 " + (s % 60) + " 秒") : (s + " 秒")
+    }
     property real promptScale: 1
     property real contentOpacity: 1
     property real contentShift: 0
@@ -202,6 +208,46 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
+            spacing: 9
+            visible: !backend.hasSession || backend.sessionComplete
+
+            Text {
+                text: "范围"
+                color: T.faint
+                font.family: T.fontCN
+                font.pixelSize: 11
+            }
+            Chip {
+                label: "新词 + 复习"
+                selected: backend.studyScope === "mix"
+                onClicked: backend.setStudyScope("mix")
+            }
+            Chip {
+                label: "只学新词"
+                selected: backend.studyScope === "new"
+                onClicked: backend.setStudyScope("new")
+            }
+            Chip {
+                label: "只复习"
+                selected: backend.studyScope === "review"
+                onClicked: backend.setStudyScope("review")
+            }
+            Text {
+                text: "每章 " + String(backend.chapterSize) + " 词"
+                color: T.faint
+                font.family: T.fontCN
+                font.pixelSize: 11
+                visible: backend.chapterMode
+            }
+            Item { Layout.fillWidth: true }
+            TextButton {
+                text: "随机混合"
+                onClicked: backend.startRandom()
+            }
+        }
+
+        RowLayout {
+            Layout.fillWidth: true
             spacing: 14
             visible: !backend.hasSession || backend.sessionComplete
 
@@ -351,6 +397,83 @@ Item {
                     font.family: T.fontCN
                     font.pixelSize: 14
                 }
+                Item { width: 1; height: 2 }
+                Row {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    spacing: 28
+                    Column {
+                        spacing: 3
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: String(backend.sessionAccuracy) + "%"
+                            color: T.ink
+                            font.family: T.fontEN
+                            font.pixelSize: 22
+                            font.bold: true
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "正确率"
+                            color: T.faint
+                            font.family: T.fontCN
+                            font.pixelSize: 10
+                        }
+                    }
+                    Column {
+                        spacing: 3
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: String(backend.sessionWpm)
+                            color: T.ink
+                            font.family: T.fontEN
+                            font.pixelSize: 22
+                            font.bold: true
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "WPM"
+                            color: T.faint
+                            font.family: T.fontEN
+                            font.pixelSize: 10
+                        }
+                    }
+                    Column {
+                        spacing: 3
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: page.durationText(backend.sessionElapsed)
+                            color: T.ink
+                            font.family: T.fontCN
+                            font.pixelSize: 18
+                            font.bold: true
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "用时"
+                            color: T.faint
+                            font.family: T.fontCN
+                            font.pixelSize: 10
+                        }
+                    }
+                    Column {
+                        spacing: 3
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: String(backend.wrongCount)
+                            color: T.ink
+                            font.family: T.fontEN
+                            font.pixelSize: 22
+                            font.bold: true
+                        }
+                        Text {
+                            anchors.horizontalCenter: parent.horizontalCenter
+                            text: "错题"
+                            color: T.faint
+                            font.family: T.fontCN
+                            font.pixelSize: 10
+                        }
+                    }
+                }
                 Item { width: 1; height: 6 }
                 Row {
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -361,8 +484,17 @@ Item {
                         onClicked: backend.exitPractice()
                     }
                     AppButton {
-                        text: "再来一轮"
-                        onClicked: backend.startPlan("today")
+                        text: "下一章"
+                        onClicked: backend.startNextChapter()
+                    }
+                    AppButton {
+                        text: "默写本章"
+                        onClicked: backend.startChapterDictation()
+                    }
+                    AppButton {
+                        text: "练错题 (" + String(backend.wrongCount) + ")"
+                        visible: backend.wrongCount > 0
+                        onClicked: backend.startWrongReview()
                     }
                 }
             }
@@ -869,7 +1001,10 @@ Item {
                && !page.hasRetryResult
         maximumLength: page.currentWord.length
         text: backend.answer || ""
-        onTextEdited: backend.setAnswer(text)
+        onTextEdited: {
+            backend.playInputSound()
+            backend.setAnswer(text)
+        }
         onAccepted: {
             page.inputHandledEnter = true
             if (backend.retryResult !== null && backend.retryResult !== undefined)

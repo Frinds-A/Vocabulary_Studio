@@ -9,6 +9,20 @@ Item {
     property bool reveal: false
     property real accuracy: Number((backend.stats && backend.stats.accuracy) || 0)
     readonly property int studyMinutes: Math.floor(Number(backend.studySeconds || 0) / 60)
+    readonly property int forecastMax: {
+        var rows = backend.reviewForecast || []
+        var result = 1
+        for (var i = 0; i < rows.length; ++i)
+            result = Math.max(result, Number(rows[i].count || 0))
+        return result
+    }
+    readonly property int monthMax: {
+        var rows = (backend.stats && backend.stats.month) || [1]
+        var result = 1
+        for (var i = 0; i < rows.length; ++i)
+            result = Math.max(result, Number(rows[i] || 0))
+        return result
+    }
 
     function studyTimeText() {
         var minutes = page.studyMinutes
@@ -269,6 +283,127 @@ Item {
                         }
 
                         Item { Layout.fillHeight: true }
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 94
+                radius: 12
+                color: T.white
+                border.width: 1
+                border.color: T.line
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 18
+                    spacing: 7
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "近 30 天"
+                            color: T.ink
+                            font.family: T.fontCN
+                            font.pixelSize: 13
+                            font.bold: true
+                        }
+                        Item { Layout.fillWidth: true }
+                        Text {
+                            text: "每天首次学习的单词数"
+                            color: T.faint
+                            font.family: T.fontCN
+                            font.pixelSize: 10
+                        }
+                    }
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        spacing: 3
+                        Repeater {
+                            model: (backend.stats && backend.stats.month) || []
+                            delegate: Rectangle {
+                                Layout.fillWidth: true
+                                Layout.preferredHeight: Math.max(3, 36 * Number(modelData || 0) / Math.max(1, page.monthMax))
+                                Layout.alignment: Qt.AlignBottom
+                                radius: 2
+                                color: Number(modelData || 0) > 0 ? T.ink : T.neutralPale
+                            }
+                        }
+                    }
+                }
+            }
+
+            Rectangle {
+                Layout.fillWidth: true
+                Layout.preferredHeight: 126
+                radius: 12
+                color: T.white
+                border.width: 1
+                border.color: T.line
+
+                ColumnLayout {
+                    anchors.fill: parent
+                    anchors.margins: 22
+                    spacing: 9
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Text {
+                            text: "复习预测"
+                            color: T.ink
+                            font.family: T.fontCN
+                            font.pixelSize: 16
+                            font.bold: true
+                        }
+                        Item { Layout.fillWidth: true }
+                        Text {
+                            text: "接下来 7 天"
+                            color: T.faint
+                            font.family: T.fontCN
+                            font.pixelSize: 10
+                        }
+                    }
+
+                    RowLayout {
+                        Layout.fillWidth: true
+                        Layout.fillHeight: true
+                        spacing: 8
+                        Repeater {
+                            model: backend.reviewForecast || []
+                            delegate: ColumnLayout {
+                                Layout.fillWidth: true
+                                Layout.fillHeight: true
+                                spacing: 4
+                                Item {
+                                    Layout.fillWidth: true
+                                    Layout.fillHeight: true
+                                    Rectangle {
+                                        anchors.bottom: parent.bottom
+                                        anchors.horizontalCenter: parent.horizontalCenter
+                                        width: Math.min(parent.width - 10, 22)
+                                        height: Math.max(4, parent.height * Number(modelData.count || 0) / Math.max(1, page.forecastMax))
+                                        radius: 4
+                                        color: modelData.count > 0 ? T.ink : T.neutralPale
+                                        Behavior on height { NumberAnimation { duration: 260; easing.type: Easing.OutCubic } }
+                                    }
+                                }
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: String(modelData.count || 0)
+                                    color: T.muted
+                                    font.family: T.fontEN
+                                    font.pixelSize: 10
+                                }
+                                Text {
+                                    Layout.alignment: Qt.AlignHCenter
+                                    text: String(modelData.label || "")
+                                    color: T.faint
+                                    font.family: T.fontCN
+                                    font.pixelSize: 9
+                                }
+                            }
+                        }
                     }
                 }
             }

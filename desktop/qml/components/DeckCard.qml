@@ -6,8 +6,10 @@ import "../Theme.js" as T
 Rectangle {
     id: card
     property var deck: ({})
+    property bool favorite: false
     readonly property var theme: T.deckTheme(deck)
     signal start()
+    signal favoriteToggled()
 
     implicitWidth: 520
     implicitHeight: 224
@@ -34,6 +36,24 @@ Rectangle {
 
     HoverHandler { id: hover; cursorShape: Qt.PointingHandCursor }
     TapHandler { onTapped: card.start() }
+
+    Text {
+        anchors.top: parent.top
+        anchors.right: parent.right
+        anchors.topMargin: 14
+        anchors.rightMargin: 16
+        text: card.favorite ? "★" : "☆"
+        color: card.favorite ? T.ink : T.faint
+        font.family: T.fontEN
+        font.pixelSize: 18
+        z: 2
+        MouseArea {
+            anchors.fill: parent
+            anchors.margins: -8
+            cursorShape: Qt.PointingHandCursor
+            onClicked: card.favoriteToggled()
+        }
+    }
 
     RowLayout {
         anchors.fill: parent

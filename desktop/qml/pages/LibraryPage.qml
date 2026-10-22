@@ -12,6 +12,7 @@ Item {
     property string query: ""
     property string examFilter: "all"
     property string typeFilter: "all"
+    property bool favoriteOnly: false
     property var filtered: []
 
     function refresh() {
@@ -28,6 +29,8 @@ Item {
                 continue
             }
             if (page.typeFilter !== "all" && String(deck.type || "").toLowerCase() !== page.typeFilter)
+                continue
+            if (page.favoriteOnly && !deck.favorite)
                 continue
             var hay = (String(deck.name || "") + " " + String(deck.exam || "") + " "
                        + String(deck.type || "") + " " + String(deck.tag || "")).toLowerCase()
@@ -47,6 +50,7 @@ Item {
     onQueryChanged: refresh()
     onExamFilterChanged: refresh()
     onTypeFilterChanged: refresh()
+    onFavoriteOnlyChanged: refresh()
 
     Timer {
         id: replayTimer
@@ -110,10 +114,11 @@ Item {
 
                 Chip {
                     label: "全部"
-                    selected: page.examFilter === "all" && page.typeFilter === "all"
+                    selected: page.examFilter === "all" && page.typeFilter === "all" && !page.favoriteOnly
                     onClicked: {
                         page.examFilter = "all"
                         page.typeFilter = "all"
+                        page.favoriteOnly = false
                     }
                 }
                 Chip {
@@ -152,6 +157,11 @@ Item {
                     onClicked: page.examFilter = page.examFilter === "ai" ? "all" : "ai"
                 }
                 Chip {
+                    label: "收藏"
+                    selected: page.favoriteOnly
+                    onClicked: page.favoriteOnly = !page.favoriteOnly
+                }
+                Chip {
                     label: "单词"
                     selected: page.typeFilter === "words"
                     onClicked: page.typeFilter = page.typeFilter === "words" ? "all" : "words"
@@ -183,9 +193,11 @@ Item {
                         width: flick.width > 1010 ? (flick.width - 80 - 16) / 2 : flick.width - 80
                         height: 224
                         deck: modelData
+                        favorite: modelData.favorite || false
                         onStart: {
                             backend.openDeck(deck.id)
                         }
+                        onFavoriteToggled: backend.toggleDeckFavorite(modelData.id)
                     }
                 }
             }

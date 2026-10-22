@@ -374,6 +374,80 @@ Item {
                                 }
                                 SettingToggle {
                                     Layout.fillWidth: true
+                                    title: "章节练习"
+                                    subtitle: "把每日学习拆成小段，完成一章再继续"
+                                    glyph: "▤"
+                                    checked: backend.chapterMode
+                                    onToggled: backend.saveSetting("chapterMode", !checked)
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.leftMargin: 18
+                                    Layout.rightMargin: 18
+                                    visible: backend.chapterMode
+                                    spacing: 8
+                                    Text {
+                                        text: "每章词数"
+                                        color: T.muted
+                                        font.family: T.fontCN
+                                        font.pixelSize: 11
+                                    }
+                                    Repeater {
+                                        model: [10, 20, 30, 50]
+                                        delegate: Chip {
+                                            label: String(modelData)
+                                            selected: backend.chapterSize === modelData
+                                            onClicked: backend.setChapterSize(modelData)
+                                        }
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                }
+                                SettingToggle {
+                                    Layout.fillWidth: true
+                                    title: "输入音效"
+                                    subtitle: "敲击键盘时播放轻微按键声"
+                                    glyph: "⌨"
+                                    checked: backend.inputSound
+                                    onToggled: backend.saveSetting("inputSound", !checked)
+                                }
+                                RowLayout {
+                                    Layout.fillWidth: true
+                                    Layout.leftMargin: 18
+                                    Layout.rightMargin: 18
+                                    spacing: 8
+                                    Text {
+                                        text: "发音语速"
+                                        color: T.muted
+                                        font.family: T.fontCN
+                                        font.pixelSize: 11
+                                    }
+                                    Chip {
+                                        label: "慢"
+                                        selected: backend.speechRate < -0.1
+                                        onClicked: backend.setSpeechRate(-0.25)
+                                    }
+                                    Chip {
+                                        label: "正常"
+                                        selected: Math.abs(backend.speechRate) <= 0.1
+                                        onClicked: backend.setSpeechRate(0.0)
+                                    }
+                                    Chip {
+                                        label: "快"
+                                        selected: backend.speechRate > 0.1
+                                        onClicked: backend.setSpeechRate(0.25)
+                                    }
+                                    Item { Layout.fillWidth: true }
+                                }
+                                SettingToggle {
+                                    Layout.fillWidth: true
+                                    title: "自动备份学习记录"
+                                    subtitle: "每天保留一份快照，最多 7 份"
+                                    glyph: "◷"
+                                    checked: !backend.settings || backend.settings.autoBackup !== false
+                                    onToggled: backend.saveSetting("autoBackup", !checked)
+                                }
+                                SettingToggle {
+                                    Layout.fillWidth: true
                                     title: "答题后自动播放发音"
                                     subtitle: "提交后播放单词读音"
                                     glyph: "♫"

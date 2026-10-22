@@ -121,11 +121,15 @@ def _default_state() -> dict[str, Any]:
         "customGoals": {},
         "settings": {"autoSpeak": True, "spacedRepetition": True, "includeNotebook": False,
                      "voiceAccent": "us", "autoCheckUpdates": True,
+                     "chapterMode": True, "chapterSize": 20, "studyScope": "mix",
+                     "inputSound": True, "speechRate": 0.0, "autoBackup": True,
                      "welcomeSeen": False, "welcomeVersion": ""},
         "progress": {},
         "attempts": [],
         "studySeconds": 0,
         "notebook": [],
+        "wrongBook": {},
+        "favoriteDecks": [],
         "customBooks": [],
         "session": None,
     }
@@ -207,12 +211,17 @@ class StudyBackend(QObject):
         if isinstance(saved.get("settings"), dict):
             state["settings"].update({key: bool(saved["settings"][key])
                                       for key in ("autoSpeak", "spacedRepetition", "includeNotebook",
-                                                  "autoCheckUpdates", "welcomeSeen")
+                                                  "autoCheckUpdates", "chapterMode", "inputSound",
+                                                  "autoBackup", "welcomeSeen")
                                       if key in saved["settings"]})
             if isinstance(saved["settings"].get("welcomeVersion"), str):
                 state["settings"]["welcomeVersion"] = saved["settings"]["welcomeVersion"]
             if saved["settings"].get("voiceAccent") in {"us", "uk"}:
                 state["settings"]["voiceAccent"] = saved["settings"]["voiceAccent"]
+            if saved["settings"].get("studyScope") in {"mix", "new", "review"}:
+                state["settings"]["studyScope"] = saved["settings"]["studyScope"]
+            state["settings"]["chapterSize"] = _safe_int(saved["settings"].get("chapterSize"), 20, 5, 100)
+            state["settings"]["speechRate"] = max(-0.4, min(0.4, float(saved["settings"].get("speechRate", 0.0) or 0.0)))
         if isinstance(saved.get("progress"), dict):
             state["progress"] = {str(key): value for key, value in saved["progress"].items()
                                   if isinstance(value, dict) and isinstance(value.get("lastSeenAt"), (int, float))}
@@ -227,6 +236,13 @@ class StudyBackend(QObject):
         state["studySeconds"] = _safe_int(saved.get("studySeconds"), 0, 0, 10**12)
         if isinstance(saved.get("notebook"), list):
             state["notebook"] = [item for item in saved["notebook"] if isinstance(item, dict) and isinstance(item.get("word"), str) and isinstance(item.get("id"), str)]
+        if isinstance(saved.get("wrongBook"), dict):
+            state["wrongBook"] = {str(key): {"count": _safe_int(value.get("count"), 1, 1, 100000),
+                                              "at": _safe_int(value.get("at"), _now_ms(), 0, 2**63 - 1)}
+                                   for key, value in saved["wrongBook"].items()
+                                   if isinstance(value, dict)}
+        if isinstance(saved.get("favoriteDecks"), list):
+            state["favoriteDecks"] = [str(item) for item in saved["favoriteDecks"] if isinstance(item, str)]
         if isinstance(saved.get("customBooks"), list):
             state["customBooks"] = [self._clean_book(item) for item in saved["customBooks"] if self._clean_book(item)]
         session = saved.get("session")
@@ -235,7 +251,7 @@ class StudyBackend(QObject):
                 "deckKey": str(session.get("deckKey", "")),
                 "deckKeys": [str(item) for item in session.get("deckKeys", []) if isinstance(item, str)],
                 "ids": [str(item) for item in session["ids"] if isinstance(item, str)][:10000],
-                "kind": session.get("kind", "free") if session.get("kind") in {"today", "deck", "review", "free", "notebook"} else "free",
+                "kind": session.get("kind", "free") if session.get("kind") in {"today", "deck", "review", "free", "notebook", "random", "wrong", "dictation"} else "free",
                 "position": max(0, _safe_int(session.get("position"), 0, 0, 10000)),
                 "completed": max(0, _safe_int(session.get("completed"), 0, 0, 10000)),
                 "answer": str(session.get("answer", ""))[:500],
@@ -244,6 +260,8 @@ class StudyBackend(QObject):
                 "retrying": bool(session.get("retrying", False)),
                 "retryResult": session.get("retryResult") if isinstance(session.get("retryResult"), dict) else None,
                 "retryWrong": bool(session.get("retryWrong", False)),
+                "passes": max(1, min(2, _safe_int(session.get("passes"), 2, 1, 2))),
+                "typedLetters": max(0, _safe_int(session.get("typedLetters"), 0, 0, 10_000_000)),
                 "startedAt": _safe_int(session.get("startedAt"), _now_ms(), 0, 8_640_000_000_000_000),
             }
         return state
@@ -266,6 +284,18 @@ class StudyBackend(QObject):
         temporary = self._state_path.with_suffix(".json.tmp")
         temporary.write_text(json.dumps(self._state, ensure_ascii=False, indent=2), encoding="utf-8")
         temporary.replace(self._state_path)
+        if self._state.get("settings", {}).get("autoBackup", True):
+            try:
+                backup_dir = self._state_path.parent / "backups"
+                backup_dir.mkdir(parents=True, exist_ok=True)
+                backup = backup_dir / f"state-{date.today().isoformat()}.json"
+                if not backup.exists():
+                    shutil.copy2(self._state_path, backup)
+                backups = sorted(backup_dir.glob("state-*.json"))
+                for old in backups[:-7]:
+                    old.unlink(missing_ok=True)
+            except OSError:
+                pass
 
     def _emit_changed(self, save: bool = True, invalidate: bool = True) -> None:
         if invalidate:
@@ -291,7 +321,6 @@ class StudyBackend(QObject):
                 entry["deckName"] = DECK_META[key]["name"]
                 entry.setdefault("meaning", "")
                 entry.setdefault("pos", "词义")
-                entry.setdefault("senses", [{"pos": entry["pos"], "meanings": [entry["meaning"]]}])
                 entry["phrase"] = DECK_META[key].get("type") == "phrases"
                 self._entries_by_id[str(entry["id"])] = entry
         for book in self._state.get("customBooks", []):
@@ -406,6 +435,7 @@ class StudyBackend(QObject):
             learned = sum(1 for entry in entries if isinstance(entry, dict) and _is_mastered(progress.get(entry.get("id"))))
             studied = sum(1 for entry in entries if isinstance(entry, dict) and entry.get("id") in progress)
             result.append({**meta, "id": key, "deckKey": key, "goal": self._state["dailyGoals"][key],
+                           "favorite": key in self._state.get("favoriteDecks", []),
                            "total": len(entries), "studied": studied, "learned": learned,
                            "unlearned": max(0, len(entries) - learned), "custom": False})
         for book in self._state["customBooks"]:
@@ -454,6 +484,12 @@ class StudyBackend(QObject):
                 entries.append(entry)
         self._cache["selected_entries"] = entries
         return entries
+
+    def _chapter_limit(self, entries: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        if not self.chapterMode:
+            return entries
+        size = max(5, min(100, self.chapterSize))
+        return entries[:size]
 
     def _notebook_entries(self) -> list[dict[str, Any]]:
         entries: list[dict[str, Any]] = []
@@ -553,9 +589,21 @@ class StudyBackend(QObject):
             if day_key in per_day:
                 per_day[day_key].add(key)
         week = [len(per_day[(today - timedelta(days=offset)).isoformat()]) for offset in range(6, -1, -1)]
+        month_days = [(today - timedelta(days=offset)).isoformat() for offset in range(29, -1, -1)]
+        month_counts: dict[str, set[str]] = {day: set() for day in month_days}
+        for key, ids in self._ids_by_word.items():
+            first_seen = [self._state["progress"][entry_id].get("firstSeenAt")
+                          for entry_id in ids if isinstance(self._state["progress"].get(entry_id), dict)]
+            if not first_seen:
+                continue
+            day_key = _day_key(min(first_seen))
+            if day_key in month_counts:
+                month_counts[day_key].add(key)
+        month = [len(month_counts[day]) for day in month_days]
         learned = sum(1 for ids in self._ids_by_word.values()
                       if any(_is_mastered(self._state["progress"].get(entry_id)) for entry_id in ids))
         return {"learned": learned, "streak": streak, "reviews": len(word_days), "week": week,
+                "month": month,
                 "accuracy": round(100 * sum(bool(item["correct"]) for item in attempts) / len(attempts)) if attempts else 0,
                 "right": sum(bool(item["correct"]) for item in attempts)}
 
@@ -822,6 +870,19 @@ class StudyBackend(QObject):
             self.flushStudyTime()
 
     @Slot()
+    def playInputSound(self):
+        if not self.inputSound or os.name != "nt":
+            return
+        try:
+            import winsound
+            base = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parent))
+            path = base / "assets" / "key.wav"
+            if path.exists():
+                winsound.PlaySound(str(path), winsound.SND_FILENAME | winsound.SND_ASYNC | winsound.SND_NODEFAULT)
+        except (ImportError, OSError, RuntimeError):
+            pass
+
+    @Slot()
     def flushStudyTime(self):
         if self._study_pending <= 0:
             return
@@ -839,6 +900,150 @@ class StudyBackend(QObject):
     @Property(bool, notify=stateChanged)
     def hasSession(self):
         return self._state.get("session") is not None and self._session_entry() is not None
+
+    @Property(int, notify=stateChanged)
+    def chapterSize(self):
+        return _safe_int(self._state.get("settings", {}).get("chapterSize"), 20, 5, 100)
+
+    @Property(bool, notify=stateChanged)
+    def chapterMode(self):
+        return bool(self._state.get("settings", {}).get("chapterMode", True))
+
+    @Property(str, notify=stateChanged)
+    def studyScope(self):
+        scope = self._state.get("settings", {}).get("studyScope", "mix")
+        return scope if scope in {"mix", "new", "review"} else "mix"
+
+    @Property(bool, notify=stateChanged)
+    def inputSound(self):
+        return bool(self._state.get("settings", {}).get("inputSound", True))
+
+    @Property(float, notify=stateChanged)
+    def speechRate(self):
+        return float(self._state.get("settings", {}).get("speechRate", 0.0))
+
+    @Property(int, notify=stateChanged)
+    def wrongCount(self):
+        return len([key for key in self._state.get("wrongBook", {}) if key in self._entries_by_id])
+
+    @Property("QVariantList", notify=stateChanged)
+    def wrongWords(self):
+        rows = []
+        for entry_id, meta in self._state.get("wrongBook", {}).items():
+            entry = self._entries_by_id.get(entry_id)
+            if not isinstance(entry, dict):
+                continue
+            item = dict(entry)
+            item["wrongCount"] = _safe_int(meta.get("count"), 1, 1, 100000)
+            item["wrongAt"] = _safe_int(meta.get("at"), 0, 0, 2**63 - 1)
+            rows.append(item)
+        return sorted(rows, key=lambda item: (item["wrongCount"], item["wrongAt"]), reverse=True)
+
+    @Property(int, notify=stateChanged)
+    def sessionWpm(self):
+        session = self._state.get("session") or {}
+        started = _safe_int(session.get("startedAt"), _now_ms(), 0, 2**63 - 1)
+        elapsed = max(1, _now_ms() - started)
+        typed = _safe_int(session.get("typedLetters"), 0, 0, 10_000_000)
+        return int(round((typed / 5.0) / (elapsed / 60000.0))) if typed else 0
+
+    @Property(int, notify=stateChanged)
+    def sessionAccuracy(self):
+        session = self._state.get("session") or {}
+        done = _safe_int(session.get("completed"), 0, 0, 100000)
+        right = _safe_int(session.get("right"), 0, 0, 100000)
+        return int(round(right * 100.0 / done)) if done else 0
+
+    @Property(int, notify=stateChanged)
+    def sessionElapsed(self):
+        session = self._state.get("session") or {}
+        started = _safe_int(session.get("startedAt"), _now_ms(), 0, 2**63 - 1)
+        return max(0, int((_now_ms() - started) / 1000))
+
+    @Property("QVariantList", notify=stateChanged)
+    def reviewForecast(self):
+        today = date.today()
+        buckets = [0] * 7
+        for entry in self._selected_entries():
+            record = self._state["progress"].get(entry.get("id"))
+            if not isinstance(record, dict):
+                continue
+            due = record.get("nextReviewAt")
+            if not isinstance(due, (int, float)):
+                continue
+            day = (datetime.fromtimestamp(float(due) / 1000).date() - today).days
+            if 0 <= day < 7:
+                buckets[day] += 1
+        labels = ["今天", "明天", "后天", "第4天", "第5天", "第6天", "第7天"]
+        return [{"label": labels[i], "count": buckets[i]} for i in range(7)]
+
+    @Slot(str)
+    def setStudyScope(self, scope: str):
+        if scope not in {"mix", "new", "review"}:
+            return
+        self._state.setdefault("settings", {})["studyScope"] = scope
+        self._emit_changed()
+
+    @Slot(int)
+    def setChapterSize(self, amount: int):
+        self._state.setdefault("settings", {})["chapterSize"] = _safe_int(amount, 20, 5, 100)
+        self._emit_changed()
+
+    @Slot(float)
+    def setSpeechRate(self, rate: float):
+        self._state.setdefault("settings", {})["speechRate"] = max(-0.4, min(0.4, float(rate)))
+        self._apply_voice_accent()
+        self._emit_changed()
+
+    @Slot(str)
+    def toggleDeckFavorite(self, deck_id: str):
+        favorites = list(self._state.get("favoriteDecks", []))
+        if deck_id in favorites:
+            favorites.remove(deck_id)
+        elif deck_id in DECK_META:
+            favorites.append(deck_id)
+        self._state["favoriteDecks"] = favorites
+        self._emit_changed()
+
+    @Slot(str, result=bool)
+    def isDeckFavorite(self, deck_id: str) -> bool:
+        return deck_id in self._state.get("favoriteDecks", [])
+
+    @Slot()
+    def startWrongReview(self):
+        entries = self.wrongWords
+        if not entries:
+            self._status("错题本是空的")
+            return
+        queue = self._chapter_limit(entries)
+        queue = [self._entries_by_id[item["id"]] for item in queue if item["id"] in self._entries_by_id]
+        queue = queue + queue
+        self._history.clear()
+        self._state["session"] = {
+            "deckKey": self._state["selectedDeckId"],
+            "deckKeys": [deck["id"] for deck in self._selected_decks()],
+            "ids": [entry["id"] for entry in queue],
+            "kind": "wrong", "position": 0, "completed": 0,
+            "answer": "", "result": None, "right": 0,
+            "retrying": False, "retryResult": None, "retryWrong": False,
+            "passes": 2, "typedLetters": 0, "startedAt": _now_ms(),
+        }
+        self._page = "practice"
+        self.answerChanged.emit()
+        self._emit_changed()
+
+    @Slot(str)
+    def removeWrong(self, entry_id: str):
+        self._state.get("wrongBook", {}).pop(entry_id, None)
+        self._emit_changed()
+
+    def _apply_voice_rate(self):
+        if self._tts is None:
+            return
+        try:
+            self._tts.setRate(self.speechRate)
+        except (AttributeError, RuntimeError):
+            pass
 
     @Property(str, notify=stateChanged)
     def voiceAccent(self):
@@ -900,6 +1105,7 @@ class StudyBackend(QObject):
                 self._qt_voice_ready = True
             else:
                 self._qt_voice_ready = False
+            self._apply_voice_rate()
         except (AttributeError, RuntimeError):
             self._qt_voice_ready = False
 
@@ -1005,8 +1211,16 @@ class StudyBackend(QObject):
         notebook = (self._notebook_entries()
                     if self._state["settings"].get("includeNotebook", False)
                     else self._relearn_entries()) if kind == "today" else []
-        if kind == "deck":
+        scope = self.studyScope
+        if kind == "random":
+            candidates = list(entries)
+            random.shuffle(candidates)
+        elif kind == "deck":
             candidates = due + [entry for entry in entries if entry["id"] not in {item["id"] for item in due}]
+        elif scope == "new":
+            candidates = new
+        elif scope == "review":
+            candidates = due
         elif self._state.get("settings", {}).get("spacedRepetition", True) is False:
             candidates = notebook + new
         else:
@@ -1019,6 +1233,7 @@ class StudyBackend(QObject):
                 continue
             seen_words.add(key)
             queue.append(entry)
+        queue = self._chapter_limit(queue)
         # Every word is studied in two rounds per session.
         queue = queue + queue
         # Every deck supports spelling, choice and dictation modes.
@@ -1026,15 +1241,49 @@ class StudyBackend(QObject):
         deck_keys = [deck["id"] for deck in self._selected_decks()]
         self._state["session"] = {"deckKey": self._state["selectedDeckId"], "deckKeys": deck_keys,
                                    "ids": [entry["id"] for entry in queue],
-                                   "kind": kind if kind in {"today", "deck"} else "today", "position": 0,
+                                   "kind": kind if kind in {"today", "deck", "random"} else "today", "position": 0,
                                    "completed": 0, "answer": "", "result": None, "right": 0,
                                    "retrying": False, "retryResult": None, "retryWrong": False,
-                                   "passes": 2, "startedAt": _now_ms()}
+                                   "passes": 2, "typedLetters": 0, "startedAt": _now_ms()}
         self._page = "practice"
         self.answerChanged.emit()
         self._emit_changed()
         if not queue:
             self._status("今日计划已完成，继续保持")
+
+    @Slot()
+    def startNextChapter(self):
+        self.startPlan("today")
+
+    @Slot()
+    def startChapterDictation(self):
+        session = self._state.get("session") or {}
+        ids = []
+        for entry_id in session.get("ids", []):
+            if entry_id not in ids and entry_id in self._entries_by_id:
+                ids.append(entry_id)
+        if not ids:
+            self._status("本章还没有可默写的单词")
+            return
+        entries = [self._entries_by_id[item] for item in ids]
+        queue = self._chapter_limit(entries)
+        queue = queue + queue
+        self._state.setdefault("settings", {})["mode"] = "dictation"
+        self._state["mode"] = "dictation"
+        self._history.clear()
+        self._state["session"] = {"deckKey": self._state["selectedDeckId"],
+                                   "deckKeys": [deck["id"] for deck in self._selected_decks()],
+                                   "ids": [entry["id"] for entry in queue],
+                                   "kind": "dictation", "position": 0, "completed": 0, "answer": "", "result": None,
+                                   "right": 0, "retrying": False, "retryResult": None, "retryWrong": False,
+                                   "passes": 2, "typedLetters": 0, "startedAt": _now_ms()}
+        self._page = "practice"
+        self.answerChanged.emit()
+        self._emit_changed()
+
+    @Slot()
+    def startRandom(self):
+        self.startPlan("random")
 
     @Slot()
     def startReview(self):
@@ -1052,6 +1301,7 @@ class StudyBackend(QObject):
         if not queue:
             self._status("今天没有到期的复习")
             return
+        queue = self._chapter_limit(queue)
         queue = queue + queue
         self._history.clear()
         self._state["session"] = {
@@ -1061,7 +1311,7 @@ class StudyBackend(QObject):
             "kind": "review", "position": 0, "completed": 0,
             "answer": "", "result": None, "right": 0,
             "retrying": False, "retryResult": None, "retryWrong": False,
-            "passes": 2, "startedAt": _now_ms(),
+            "passes": 2, "typedLetters": 0, "startedAt": _now_ms(),
         }
         self._page = "practice"
         self.answerChanged.emit()
@@ -1072,6 +1322,8 @@ class StudyBackend(QObject):
         self._state["progress"] = {}
         self._state["attempts"] = []
         self._state["notebook"] = []
+        self._state["wrongBook"] = {}
+        self._state["favoriteDecks"] = []
         self._state["studySeconds"] = 0
         self._state["session"] = None
         self._state.setdefault("settings", {})["welcomeSeen"] = False
@@ -1288,6 +1540,18 @@ class StudyBackend(QObject):
         self._state["attempts"].append(attempt)
         self._state["attempts"] = self._state["attempts"][-10000:]
         self._update_progress(current["id"], attempt)
+
+        # Wrong-answer book: record misses, clear a word once it is mastered.
+        wrong_book = self._state.setdefault("wrongBook", {})
+        if not correct and not skipped:
+            previous = wrong_book.get(current["id"], {})
+            wrong_book[current["id"]] = {"count": _safe_int(previous.get("count"), 0, 0, 100000) + 1,
+                                          "at": at}
+        elif correct and current["id"] in wrong_book and bool(self._state["progress"].get(current["id"], {}).get("mastered")):
+            wrong_book.pop(current["id"], None)
+
+        session["typedLetters"] = _safe_int(session.get("typedLetters"), 0, 0, 10_000_000) + \
+            len(str(session.get("answer", ""))) if self.currentMode != "choice" else _safe_int(session.get("typedLetters"), 0, 0, 10_000_000)
 
         record = self._state["progress"].get(current["id"], {})
         session["result"]["correctCount"] = _safe_int(record.get("correctCount"), 0, 0, 1_000_000)
@@ -1556,11 +1820,18 @@ class StudyBackend(QObject):
 
     @Slot(str, "QVariant")
     def saveSetting(self, key: str, value: Any):
-        if key in {"autoSpeak", "spacedRepetition", "includeNotebook", "autoCheckUpdates"}:
+        if key in {"autoSpeak", "spacedRepetition", "includeNotebook", "autoCheckUpdates",
+                   "chapterMode", "inputSound", "autoBackup"}:
             self._state["settings"][key] = bool(value)
             self._emit_changed()
         elif key == "dailyGoal":
             self.setSelectedGoals(int(value))
+        elif key == "chapterSize":
+            self.setChapterSize(int(value))
+        elif key == "speechRate":
+            self.setSpeechRate(float(value))
+        elif key == "studyScope":
+            self.setStudyScope(str(value))
 
     @Slot(int)
     def setSelectedGoals(self, amount: int):
@@ -1644,6 +1915,7 @@ class StudyBackend(QObject):
                 continue
             seen.add(key)
             queue.append(entry)
+        queue = self._chapter_limit(queue)
         queue = queue + queue
         self._history.clear()
         self._state["session"] = {"deckKey": self._state["selectedDeckId"],
@@ -1651,7 +1923,7 @@ class StudyBackend(QObject):
                                    "ids": [item["id"] for item in queue],
                                    "kind": "notebook", "position": 0, "completed": 0, "answer": "", "result": None,
                                    "right": 0, "retrying": False, "retryResult": None, "retryWrong": False,
-                                   "passes": 2, "startedAt": _now_ms()}
+                                   "passes": 2, "typedLetters": 0, "startedAt": _now_ms()}
         self._page = "practice"
         self.answerChanged.emit()
         self._emit_changed()
@@ -1683,6 +1955,7 @@ class StudyBackend(QObject):
         script = (
             "Add-Type -AssemblyName System.Speech; "
             "$s=New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+            f"$s.Rate = {int(self.speechRate * 10)}; "
             "$v=$s.GetInstalledVoices() | Where-Object {{ $_.VoiceInfo.Culture.Name -eq '{culture}' }} | Select-Object -First 1; "
             "if(-not $v){{$v=$s.GetInstalledVoices() | Where-Object {{ $_.VoiceInfo.Culture.Name -eq 'en-US' }} | Select-Object -First 1}}; "
             "if($v){{$s.SelectVoice($v.VoiceInfo.Name)}}; "
