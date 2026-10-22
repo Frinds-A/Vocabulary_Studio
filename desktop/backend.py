@@ -129,6 +129,7 @@ def _default_state() -> dict[str, Any]:
         "studySeconds": 0,
         "notebook": [],
         "favoriteDecks": [],
+        "lastChapters": {},
         "customBooks": [],
         "session": None,
     }
@@ -237,6 +238,10 @@ class StudyBackend(QObject):
             state["notebook"] = [item for item in saved["notebook"] if isinstance(item, dict) and isinstance(item.get("word"), str) and isinstance(item.get("id"), str)]
         if isinstance(saved.get("favoriteDecks"), list):
             state["favoriteDecks"] = [str(item) for item in saved["favoriteDecks"] if isinstance(item, str)]
+        if isinstance(saved.get("lastChapters"), dict):
+            state["lastChapters"] = {str(key): max(0, _safe_int(value, 0, 0, 100000))
+                                     for key, value in saved["lastChapters"].items()
+                                     if isinstance(key, str)}
         if isinstance(saved.get("customBooks"), list):
             state["customBooks"] = [self._clean_book(item) for item in saved["customBooks"] if self._clean_book(item)]
         session = saved.get("session")
@@ -245,7 +250,9 @@ class StudyBackend(QObject):
                 "deckKey": str(session.get("deckKey", "")),
                 "deckKeys": [str(item) for item in session.get("deckKeys", []) if isinstance(item, str)],
                 "ids": [str(item) for item in session["ids"] if isinstance(item, str)][:10000],
-                "kind": session.get("kind", "free") if session.get("kind") in {"today", "deck", "review", "free", "notebook", "random", "dictation"} else "free",
+                "kind": session.get("kind", "free") if session.get("kind") in {"today", "deck", "review", "free", "notebook", "random", "dictation", "chapter"} else "free",
+                "chapterIndex": max(0, _safe_int(session.get("chapterIndex"), 0, 0, 100000)),
+                "chapterDeck": str(session.get("chapterDeck", ""))[:200],
                 "position": max(0, _safe_int(session.get("position"), 0, 0, 10000)),
                 "completed": max(0, _safe_int(session.get("completed"), 0, 0, 10000)),
                 "answer": str(session.get("answer", ""))[:500],
@@ -424,6 +431,7 @@ class StudyBackend(QObject):
         result = []
         progress = self._state["progress"]
         today = _day_key()
+        chapter_size = max(5, min(100, self.chapterSize))
         for key, meta in DECK_META.items():
             entries = self._vocabulary.get(key, [])
             learned = sum(1 for entry in entries if isinstance(entry, dict) and _is_mastered(progress.get(entry.get("id"))))
@@ -431,6 +439,8 @@ class StudyBackend(QObject):
             result.append({**meta, "id": key, "deckKey": key, "goal": self._state["dailyGoals"][key],
                            "favorite": key in self._state.get("favoriteDecks", []),
                            "total": len(entries), "studied": studied, "learned": learned,
+                           "chapterCount": max(1, (len(entries) + chapter_size - 1) // chapter_size),
+                           "lastChapter": max(0, _safe_int(self._state.get("lastChapters", {}).get(key), 0, 0, 100000)),
                            "unlearned": max(0, len(entries) - learned), "custom": False})
         for book in self._state["customBooks"]:
             entries = book["entries"]
@@ -439,7 +449,10 @@ class StudyBackend(QObject):
             result.append({"id": book["id"], "deckKey": book["id"], "name": book["name"], "exam": "自定义", "type": "custom",
                            "short": "CUSTOM", "tag": "自定义词书", "color": "green", "description": "导入的自定义单词书。",
                            "goal": self._state.get("customGoals", {}).get(book["id"], 20), "total": len(entries),
-                           "studied": studied, "learned": learned, "unlearned": len(entries) - learned, "custom": True})
+                           "studied": studied, "learned": learned,
+                           "chapterCount": max(1, (len(entries) + chapter_size - 1) // chapter_size),
+                           "lastChapter": max(0, _safe_int(self._state.get("lastChapters", {}).get(book["id"]), 0, 0, 100000)),
+                           "unlearned": len(entries) - learned, "custom": True})
         self._cache["decks"] = result
         return result
 
@@ -903,6 +916,57 @@ class StudyBackend(QObject):
     def chapterMode(self):
         return bool(self._state.get("settings", {}).get("chapterMode", True))
 
+    def _chapter_size(self) -> int:
+        return max(5, min(100, self.chapterSize))
+
+    def _chapter_count_for(self, deck: dict[str, Any] | None) -> int:
+        if not deck:
+            return 0
+        entries = self._deck_entries(deck)
+        size = self._chapter_size()
+        return max(1, (len(entries) + size - 1) // size) if entries else 0
+
+    @Property(int, notify=stateChanged)
+    def chapterCount(self):
+        return self._chapter_count_for(self._selected_deck())
+
+    @Property(int, notify=stateChanged)
+    def currentChapter(self):
+        deck = self._selected_deck()
+        if not deck:
+            return 0
+        count = self._chapter_count_for(deck)
+        last = _safe_int(self._state.get("lastChapters", {}).get(deck["id"]), 0, 0, 100000)
+        return min(max(0, last), max(0, count - 1))
+
+    @Property("QVariantList", notify=stateChanged)
+    def chapterRows(self):
+        deck = self._selected_deck()
+        if not deck:
+            return []
+        entries = self._deck_entries(deck)
+        size = self._chapter_size()
+        last = self.currentChapter
+        progress = self._state["progress"]
+        rows = []
+        for start in range(0, len(entries), size):
+            index = start // size
+            chunk = entries[start:start + size]
+            studied = sum(1 for entry in chunk if entry.get("id") in progress)
+            mastered = sum(1 for entry in chunk if _is_mastered(progress.get(entry.get("id"))))
+            if studied >= len(chunk) and len(chunk) > 0:
+                status = "done"
+            elif studied > 0 or index == last:
+                status = "active"
+            else:
+                status = "new"
+            rows.append({"index": index, "label": f"第 {index + 1} 章",
+                         "total": len(chunk), "studied": studied, "mastered": mastered,
+                         "current": index == last, "status": status,
+                         "percent": int(round(studied * 100 / max(1, len(chunk))))})
+        return rows
+
+
     @Property(str, notify=stateChanged)
     def studyScope(self):
         scope = self._state.get("settings", {}).get("studyScope", "mix")
@@ -1147,10 +1211,56 @@ class StudyBackend(QObject):
     def isDeckSelected(self, deck_id: str) -> bool:
         return deck_id in self._state.get("selectedDeckIds", [])
 
+    @Slot(int)
+    def startChapter(self, index: int):
+        deck = self._selected_deck()
+        if not deck:
+            self._status("请先选择一本词书")
+            return
+        entries = self._deck_entries(deck)
+        if not entries:
+            self._status("这本词书还没有词条")
+            return
+        size = self._chapter_size()
+        count = max(1, (len(entries) + size - 1) // size)
+        index = max(0, min(count - 1, int(index)))
+        chunk = entries[index * size:(index + 1) * size]
+        queue: list[dict[str, Any]] = []
+        seen_words: set[str] = set()
+        for entry in chunk:
+            key = _normalise_answer(entry.get("word", ""))
+            if not key or key in seen_words:
+                continue
+            seen_words.add(key)
+            queue.append(entry)
+        if not queue:
+            self._status("这一章还没有词条")
+            return
+        self._state.setdefault("lastChapters", {})[deck["id"]] = index
+        self._history.clear()
+        self._state["session"] = {
+            "deckKey": deck["id"], "deckKeys": [deck["id"]],
+            "ids": [entry["id"] for entry in queue + queue],
+            "kind": "chapter", "chapterIndex": index, "chapterDeck": deck["id"],
+            "position": 0, "completed": 0, "answer": "", "result": None, "right": 0,
+            "retrying": False, "retryResult": None, "retryWrong": False,
+            "passes": 2, "typedLetters": 0, "startedAt": _now_ms(),
+        }
+        self._page = "practice"
+        self.answerChanged.emit()
+        self._emit_changed()
+
+    @Slot()
+    def resumeChapter(self):
+        self.startChapter(self.currentChapter)
+
     @Slot(str)
     def startPlan(self, kind: str = "today"):
         if not self._selected_deck():
             self._status("请先选择一本词书")
+            return
+        if kind == "deck":
+            self.startChapter(self.currentChapter)
             return
         entries = self._selected_entries()
         due = self._due_entries(entries) if self._state["settings"].get("spacedRepetition", True) else []
@@ -1202,6 +1312,16 @@ class StudyBackend(QObject):
 
     @Slot()
     def startNextChapter(self):
+        session = self._state.get("session") or {}
+        if session.get("kind") == "chapter":
+            deck = next((item for item in self._all_decks() if item["id"] == session.get("chapterDeck")), None)
+            count = self.chapterCount if deck and deck["id"] == self._state.get("selectedDeckId") else 0
+            next_index = _safe_int(session.get("chapterIndex"), 0, 0, 100000) + 1
+            if count and next_index < count:
+                self.startChapter(next_index)
+                return
+            self._status("已经是最后一章")
+            return
         self.startPlan("today")
 
     @Slot()
@@ -1272,6 +1392,7 @@ class StudyBackend(QObject):
         self._state["attempts"] = []
         self._state["notebook"] = []
         self._state["favoriteDecks"] = []
+        self._state["lastChapters"] = {}
         self._state["studySeconds"] = 0
         self._state["session"] = None
         self._state.setdefault("settings", {})["welcomeSeen"] = False
@@ -1298,6 +1419,7 @@ class StudyBackend(QObject):
             target_ids.add(entry["id"])
         for entry_id in target_ids:
             self._state["progress"].pop(entry_id, None)
+        self._state.setdefault("lastChapters", {}).pop(deck_id, None)
         self._state["attempts"] = [item for item in self._state["attempts"] if item.get("id") not in target_ids]
         session = self._state.get("session")
         if session and (session.get("deckKey") == deck_id

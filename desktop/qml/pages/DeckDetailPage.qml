@@ -84,14 +84,97 @@ Item {
             }
 
             AppButton {
-                text: "开始学习"
+                text: "继续第 " + String(backend.currentChapter + 1) + " 章"
                 shortcut: "Ctrl+Enter"
                 primary: true
                 showBorder: true
                 implicitHeight: 42
-                implicitWidth: 112
+                implicitWidth: 124
                 fontSize: 13
-                onClicked: backend.startPlan("today")
+                onClicked: backend.resumeChapter()
+            }
+        }
+
+        Rectangle {
+            Layout.fillWidth: true
+            Layout.preferredHeight: 192
+            radius: 12
+            color: T.white
+            border.width: 1
+            border.color: T.line
+
+            ColumnLayout {
+                anchors.fill: parent
+                anchors.margins: 16
+                spacing: 9
+
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 10
+                    Text {
+                        text: "章节"
+                        color: T.ink
+                        font.family: T.fontCN
+                        font.pixelSize: 14
+                        font.bold: true
+                    }
+                    Text {
+                        text: String(backend.chapterCount || 0) + " 章 · 每章 " + String(backend.chapterSize) + " 词"
+                        color: T.muted
+                        font.family: T.fontCN
+                        font.pixelSize: 11
+                    }
+                    Item { Layout.fillWidth: true }
+                    Text {
+                        text: "上次学习：第 " + String(backend.currentChapter + 1) + " 章"
+                        color: T.faint
+                        font.family: T.fontCN
+                        font.pixelSize: 10
+                    }
+                }
+
+                GridView {
+                    Layout.fillWidth: true
+                    Layout.fillHeight: true
+                    clip: true
+                    cellWidth: 112
+                    cellHeight: 48
+                    model: backend.chapterRows || []
+                    ScrollBar.vertical: AppScrollBar { policy: ScrollBar.AsNeeded }
+
+                    delegate: Rectangle {
+                        width: 106
+                        height: 42
+                        radius: 8
+                        color: modelData.current ? T.neutralPale : T.white
+                        border.width: 1
+                        border.color: modelData.current ? T.ink : T.line
+                        HoverHandler { cursorShape: Qt.PointingHandCursor }
+                        TapHandler { onTapped: backend.startChapter(Number(modelData.index)) }
+
+                        Column {
+                            anchors.centerIn: parent
+                            spacing: 1
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: String(modelData.label)
+                                color: T.ink
+                                font.family: T.fontCN
+                                font.pixelSize: 11
+                                font.bold: modelData.current
+                            }
+                            Text {
+                                anchors.horizontalCenter: parent.horizontalCenter
+                                text: modelData.status === "done" ? "已完成"
+                                      : (modelData.status === "active" ? "学习中 · " + String(modelData.percent) + "%" : "未开始")
+                                color: modelData.status === "done" ? T.green
+                                     : (modelData.current ? T.inkSoft : T.faint)
+                                font.family: T.fontCN
+                                font.pixelSize: 9
+                            }
+                        }
+                    }
+                }
             }
         }
 

@@ -39,14 +39,14 @@ Rectangle {
 
     Text {
         anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.topMargin: 14
-        anchors.rightMargin: 16
+        anchors.left: parent.left
+        anchors.topMargin: 12
+        anchors.leftMargin: 14
         text: card.favorite ? "★" : "☆"
         color: card.favorite ? T.ink : T.faint
         font.family: T.fontEN
-        font.pixelSize: 18
-        z: 2
+        font.pixelSize: 24
+        z: 3
         MouseArea {
             anchors.fill: parent
             anchors.margins: -8
@@ -63,6 +63,22 @@ Rectangle {
         Item {
             Layout.preferredWidth: 150
             Layout.fillHeight: true
+
+            Row {
+                anchors.centerIn: parent
+                spacing: 6
+                opacity: 0.08
+                Repeater {
+                    model: [58, 44, 66, 38]
+                    delegate: Rectangle {
+                        width: 13
+                        height: Number(modelData)
+                        radius: 2
+                        color: T.ink
+                        rotation: index % 2 === 0 ? -3 : 2
+                    }
+                }
+            }
 
             Column {
                 anchors.centerIn: parent
@@ -187,14 +203,15 @@ Rectangle {
             RowLayout {
                 Layout.fillWidth: true
                 Text {
-                    text: String(card.deck.learned || 0) + " / " + String(card.deck.total || 0) + " 词"
+                    text: String(card.deck.learned || 0) + " / " + String(card.deck.total || 0) + " 词 · "
+                          + String(card.deck.chapterCount || 0) + " 章"
                     color: T.muted
                     font.family: T.fontCN
                     font.pixelSize: 12
                 }
                 Item { Layout.fillWidth: true }
                 AppButton {
-                    text: "查看单词"
+                    text: "查看章节"
                     implicitHeight: 36
                     implicitWidth: 118
                     fontSize: 13
