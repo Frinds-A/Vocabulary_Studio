@@ -130,7 +130,7 @@ def _default_state() -> dict[str, Any]:
                      "chapterMode": True, "chapterSize": 20, "studyScope": "mix",
                      "inputSound": True, "inputSoundStyle": "click",
                      "speechRate": 0.0, "autoBackup": True,
-                     "loopSession": False,
+                     "forgotShortcut": "Alt+F", "loopSession": False,
                      "welcomeSeen": False, "welcomeVersion": ""},
         "progress": {},
         "attempts": [],
@@ -248,6 +248,8 @@ class StudyBackend(QObject):
                 state["settings"]["studyScope"] = saved["settings"]["studyScope"]
             state["settings"]["chapterSize"] = _safe_int(saved["settings"].get("chapterSize"), 20, 5, 100)
             state["settings"]["speechRate"] = max(-0.4, min(0.4, float(saved["settings"].get("speechRate", 0.0) or 0.0)))
+            if isinstance(saved["settings"].get("forgotShortcut"), str):
+                state["settings"]["forgotShortcut"] = self._normalise_shortcut(saved["settings"]["forgotShortcut"])
         if isinstance(saved.get("progress"), dict):
             state["progress"] = {str(key): value for key, value in saved["progress"].items()
                                   if isinstance(value, dict) and isinstance(value.get("lastSeenAt"), (int, float))}
@@ -1162,6 +1164,22 @@ class StudyBackend(QObject):
     @Slot(int)
     def setChapterSize(self, amount: int):
         self._state.setdefault("settings", {})["chapterSize"] = _safe_int(amount, 20, 5, 100)
+        self._emit_changed()
+
+    @staticmethod
+    def _normalise_shortcut(value: Any) -> str:
+        text = str(value or "").strip()
+        if re.fullmatch(r"(?:(?:Ctrl|Alt|Shift)\+){1,3}(?:[A-Za-z]|F(?:[1-9]|1[0-2]))", text):
+            return text
+        return "Alt+F"
+
+    @Property(str, notify=stateChanged)
+    def forgotShortcut(self):
+        return self._normalise_shortcut(self._state.get("settings", {}).get("forgotShortcut", "Alt+F"))
+
+    @Slot(str)
+    def setForgotShortcut(self, shortcut: str):
+        self._state.setdefault("settings", {})["forgotShortcut"] = self._normalise_shortcut(shortcut)
         self._emit_changed()
 
     @Slot(float)
