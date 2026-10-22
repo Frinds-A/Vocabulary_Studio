@@ -428,16 +428,14 @@ class StudyBackend(QObject):
         all_decks = self._all_decks()
         all_ids = [str(deck["id"]) for deck in all_decks]
         valid = set(all_ids)
+        raw = self._state.get("statsDeckIds")
         selected = []
-        for item in self._state.get("statsDeckIds", []):
+        for item in raw if isinstance(raw, list) else []:
             deck_id = str(item)
             if deck_id in valid and deck_id not in selected:
                 selected.append(deck_id)
-        for deck_id in all_ids:
-            if len(selected) >= 5:
-                break
-            if deck_id not in selected:
-                selected.append(deck_id)
+        if not selected:
+            selected = all_ids[:5]
         self._state["statsDeckIds"] = selected[:5]
 
     def _clear_session_for_deck_change(self) -> None:
@@ -1327,10 +1325,15 @@ class StudyBackend(QObject):
         self._sanitize_stats_decks()
         selected = list(self._state.get("statsDeckIds", []))
         if deck_id in selected:
-            return
-        if len(selected) >= 5:
-            selected.pop(0)
-        selected.append(deck_id)
+            if len(selected) <= 1:
+                self._status("至少保留一本词书")
+                return
+            selected.remove(deck_id)
+        else:
+            if len(selected) >= 5:
+                self._status("最多选择 5 本词书")
+                return
+            selected.append(deck_id)
         self._state["statsDeckIds"] = selected[:5]
         self._emit_changed()
 
