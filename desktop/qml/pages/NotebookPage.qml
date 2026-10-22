@@ -12,9 +12,7 @@ Item {
 
     readonly property var notebookWords: backend.notebook || []
     readonly property var masteredWords: backend.masteredWords || []
-    readonly property var wrongWords: backend.wrongWords || []
-    readonly property var shownWords: mode === "mastered" ? masteredWords
-                                     : (mode === "wrong" ? wrongWords : notebookWords)
+    readonly property var shownWords: mode === "mastered" ? masteredWords : notebookWords
 
     function enter() {
         reveal = false
@@ -79,35 +77,15 @@ Item {
                 }
             }
 
-            Rectangle {
-                implicitHeight: 36
-                implicitWidth: wrongTabText.implicitWidth + 30
-                radius: 9
-                color: page.mode === "wrong" ? T.neutralPale : "transparent"
-                border.width: page.mode === "wrong" || wrongTabHover.hovered ? 1 : 0
-                border.color: page.mode === "wrong" ? T.lineStrong : T.line
-                HoverHandler { id: wrongTabHover; cursorShape: Qt.PointingHandCursor }
-                TapHandler { onTapped: page.mode = "wrong" }
-                Text {
-                    id: wrongTabText
-                    anchors.centerIn: parent
-                    text: "错题  " + String(page.wrongWords.length)
-                    color: page.mode === "wrong" ? T.ink : T.muted
-                    font.family: T.fontCN
-                    font.pixelSize: 13
-                    font.bold: page.mode === "wrong"
-                }
-            }
-
             Item { Layout.fillWidth: true }
 
             AppButton {
-                text: page.mode === "wrong" ? "复习错题" : "开始复习"
+                text: "开始复习"
                 visible: page.mode !== "mastered"
                 implicitHeight: 42
                 fontSize: 13
-                enabled: page.mode === "wrong" ? page.wrongWords.length > 0 : page.notebookWords.length > 0
-                onClicked: page.mode === "wrong" ? backend.startWrongReview() : backend.startNotebookReview()
+                enabled: page.notebookWords.length > 0
+                onClicked: backend.startNotebookReview()
             }
         }
 

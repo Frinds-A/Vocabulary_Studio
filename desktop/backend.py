@@ -128,7 +128,6 @@ def _default_state() -> dict[str, Any]:
         "attempts": [],
         "studySeconds": 0,
         "notebook": [],
-        "wrongBook": {},
         "favoriteDecks": [],
         "customBooks": [],
         "session": None,
@@ -236,11 +235,6 @@ class StudyBackend(QObject):
         state["studySeconds"] = _safe_int(saved.get("studySeconds"), 0, 0, 10**12)
         if isinstance(saved.get("notebook"), list):
             state["notebook"] = [item for item in saved["notebook"] if isinstance(item, dict) and isinstance(item.get("word"), str) and isinstance(item.get("id"), str)]
-        if isinstance(saved.get("wrongBook"), dict):
-            state["wrongBook"] = {str(key): {"count": _safe_int(value.get("count"), 1, 1, 100000),
-                                              "at": _safe_int(value.get("at"), _now_ms(), 0, 2**63 - 1)}
-                                   for key, value in saved["wrongBook"].items()
-                                   if isinstance(value, dict)}
         if isinstance(saved.get("favoriteDecks"), list):
             state["favoriteDecks"] = [str(item) for item in saved["favoriteDecks"] if isinstance(item, str)]
         if isinstance(saved.get("customBooks"), list):
@@ -251,7 +245,7 @@ class StudyBackend(QObject):
                 "deckKey": str(session.get("deckKey", "")),
                 "deckKeys": [str(item) for item in session.get("deckKeys", []) if isinstance(item, str)],
                 "ids": [str(item) for item in session["ids"] if isinstance(item, str)][:10000],
-                "kind": session.get("kind", "free") if session.get("kind") in {"today", "deck", "review", "free", "notebook", "random", "wrong", "dictation"} else "free",
+                "kind": session.get("kind", "free") if session.get("kind") in {"today", "deck", "review", "free", "notebook", "random", "dictation"} else "free",
                 "position": max(0, _safe_int(session.get("position"), 0, 0, 10000)),
                 "completed": max(0, _safe_int(session.get("completed"), 0, 0, 10000)),
                 "answer": str(session.get("answer", ""))[:500],
@@ -923,23 +917,6 @@ class StudyBackend(QObject):
         return float(self._state.get("settings", {}).get("speechRate", 0.0))
 
     @Property(int, notify=stateChanged)
-    def wrongCount(self):
-        return len([key for key in self._state.get("wrongBook", {}) if key in self._entries_by_id])
-
-    @Property("QVariantList", notify=stateChanged)
-    def wrongWords(self):
-        rows = []
-        for entry_id, meta in self._state.get("wrongBook", {}).items():
-            entry = self._entries_by_id.get(entry_id)
-            if not isinstance(entry, dict):
-                continue
-            item = dict(entry)
-            item["wrongCount"] = _safe_int(meta.get("count"), 1, 1, 100000)
-            item["wrongAt"] = _safe_int(meta.get("at"), 0, 0, 2**63 - 1)
-            rows.append(item)
-        return sorted(rows, key=lambda item: (item["wrongCount"], item["wrongAt"]), reverse=True)
-
-    @Property(int, notify=stateChanged)
     def sessionWpm(self):
         session = self._state.get("session") or {}
         started = _safe_int(session.get("startedAt"), _now_ms(), 0, 2**63 - 1)
@@ -1008,34 +985,6 @@ class StudyBackend(QObject):
     @Slot(str, result=bool)
     def isDeckFavorite(self, deck_id: str) -> bool:
         return deck_id in self._state.get("favoriteDecks", [])
-
-    @Slot()
-    def startWrongReview(self):
-        entries = self.wrongWords
-        if not entries:
-            self._status("错题本是空的")
-            return
-        queue = self._chapter_limit(entries)
-        queue = [self._entries_by_id[item["id"]] for item in queue if item["id"] in self._entries_by_id]
-        queue = queue + queue
-        self._history.clear()
-        self._state["session"] = {
-            "deckKey": self._state["selectedDeckId"],
-            "deckKeys": [deck["id"] for deck in self._selected_decks()],
-            "ids": [entry["id"] for entry in queue],
-            "kind": "wrong", "position": 0, "completed": 0,
-            "answer": "", "result": None, "right": 0,
-            "retrying": False, "retryResult": None, "retryWrong": False,
-            "passes": 2, "typedLetters": 0, "startedAt": _now_ms(),
-        }
-        self._page = "practice"
-        self.answerChanged.emit()
-        self._emit_changed()
-
-    @Slot(str)
-    def removeWrong(self, entry_id: str):
-        self._state.get("wrongBook", {}).pop(entry_id, None)
-        self._emit_changed()
 
     def _apply_voice_rate(self):
         if self._tts is None:
@@ -1322,7 +1271,6 @@ class StudyBackend(QObject):
         self._state["progress"] = {}
         self._state["attempts"] = []
         self._state["notebook"] = []
-        self._state["wrongBook"] = {}
         self._state["favoriteDecks"] = []
         self._state["studySeconds"] = 0
         self._state["session"] = None
@@ -1541,14 +1489,8 @@ class StudyBackend(QObject):
         self._state["attempts"] = self._state["attempts"][-10000:]
         self._update_progress(current["id"], attempt)
 
-        # Wrong-answer book: record misses, clear a word once it is mastered.
-        wrong_book = self._state.setdefault("wrongBook", {})
         if not correct and not skipped:
-            previous = wrong_book.get(current["id"], {})
-            wrong_book[current["id"]] = {"count": _safe_int(previous.get("count"), 0, 0, 100000) + 1,
-                                          "at": at}
-        elif correct and current["id"] in wrong_book and bool(self._state["progress"].get(current["id"], {}).get("mastered")):
-            wrong_book.pop(current["id"], None)
+            self._remember_mistake(current)
 
         session["typedLetters"] = _safe_int(session.get("typedLetters"), 0, 0, 10_000_000) + \
             len(str(session.get("answer", ""))) if self.currentMode != "choice" else _safe_int(session.get("typedLetters"), 0, 0, 10_000_000)
@@ -1766,6 +1708,17 @@ class StudyBackend(QObject):
         self._page = "practice"
         self._emit_changed()
         self._status("已退出练习，进度已保留")
+
+    def _remember_mistake(self, entry: dict[str, Any]) -> None:
+        """Automatically keep a missed word in the notebook."""
+        word_key = _normalise_answer(entry.get("word", ""))
+        if not word_key:
+            return
+        if any(_normalise_answer(item.get("word", "")) == word_key for item in self._state["notebook"]):
+            return
+        item = dict(entry)
+        item["relearn"] = True
+        self._state["notebook"].append(item)
 
     @Slot()
     def toggleNotebook(self):

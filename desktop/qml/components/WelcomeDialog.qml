@@ -86,7 +86,7 @@ Item {
                 text: "一份安静、离线的单词练习空间"
                 color: T.muted
                 font.family: T.fontCN
-                font.pixelSize: 11
+                font.pixelSize: 12
             }
 
             Rectangle {
@@ -101,7 +101,7 @@ Item {
                 text: "作者的话"
                 color: T.ink
                 font.family: T.fontCN
-                font.pixelSize: 13
+                font.pixelSize: 14
                 font.bold: true
             }
             Text {
@@ -109,7 +109,7 @@ Item {
                 text: "源码在 GitHub 上。如果词序帮你多记住了一个词，求各位大人点一颗 Star 喵！QAQ"
                 color: T.inkSoft
                 font.family: T.fontCN
-                font.pixelSize: 11
+                font.pixelSize: 12
                 wrapMode: Text.WordWrap
                 lineHeight: 1.5
             }
@@ -118,7 +118,7 @@ Item {
                 text: "https://github.com/Frinds-A/Vocabulary_Studio"
                 color: T.accent
                 font.family: T.fontEN
-                font.pixelSize: 11
+                font.pixelSize: 12
                 wrapMode: Text.WrapAnywhere
                 MouseArea {
                     anchors.fill: parent
@@ -130,31 +130,22 @@ Item {
             Text {
                 Layout.fillWidth: true
                 Layout.topMargin: 6
-                text: "简单用法"
+                text: "使用说明"
                 color: T.ink
                 font.family: T.fontCN
-                font.pixelSize: 13
+                font.pixelSize: 14
                 font.bold: true
             }
             Text {
                 Layout.fillWidth: true
-                text: "每天先点「今日计划」，先复习到期词，再学新词。每个词会过两遍；拼错后先看答案和例句，再重写。卡住时按 Alt + K 提示，或点「显示答案」后重新拼写。"
+                text: "每日先进入「今日计划」，先完成到期复习，再学习新词。每个词在一轮中学习两遍；拼错后先查看答案与例句，再重新拼写。若无法回忆，可使用提示或显示答案，随后再写一遍。"
                 color: T.muted
                 font.family: T.fontCN
-                font.pixelSize: 11
+                font.pixelSize: 12
                 wrapMode: Text.WordWrap
                 lineHeight: 1.5
             }
 
-            TextButton {
-                Layout.fillWidth: true
-                text: "打开完整使用说明  →"
-                bordered: true
-                onClicked: {
-                    dialog.finish()
-                    dialog.guideRequested()
-                }
-            }
 
             Item { Layout.fillHeight: true }
 
@@ -191,7 +182,7 @@ Item {
                     text: "下次不再弹出"
                     color: T.inkSoft
                     font.family: T.fontCN
-                    font.pixelSize: 11
+                    font.pixelSize: 12
                     MouseArea {
                         anchors.fill: parent
                         cursorShape: Qt.PointingHandCursor
@@ -203,6 +194,15 @@ Item {
                 }
 
                 Item { Layout.fillWidth: true }
+
+                TextButton {
+                    text: "使用说明"
+                    fontSize: 11
+                    onClicked: {
+                        dialog.finish()
+                        dialog.guideRequested()
+                    }
+                }
 
                 AppButton {
                     text: "开始学习"

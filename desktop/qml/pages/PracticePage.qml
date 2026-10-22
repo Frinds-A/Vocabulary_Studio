@@ -455,24 +455,13 @@ Item {
                             font.pixelSize: 10
                         }
                     }
-                    Column {
-                        spacing: 3
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: String(backend.wrongCount)
-                            color: T.ink
-                            font.family: T.fontEN
-                            font.pixelSize: 22
-                            font.bold: true
-                        }
-                        Text {
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            text: "错题"
-                            color: T.faint
-                            font.family: T.fontCN
-                            font.pixelSize: 10
-                        }
-                    }
+                }
+                Text {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    text: "答错的词已自动加入生词本"
+                    color: T.faint
+                    font.family: T.fontCN
+                    font.pixelSize: 10
                 }
                 Item { width: 1; height: 6 }
                 Row {
@@ -490,11 +479,6 @@ Item {
                     AppButton {
                         text: "默写本章"
                         onClicked: backend.startChapterDictation()
-                    }
-                    AppButton {
-                        text: "练错题 (" + String(backend.wrongCount) + ")"
-                        visible: backend.wrongCount > 0
-                        onClicked: backend.startWrongReview()
                     }
                 }
             }

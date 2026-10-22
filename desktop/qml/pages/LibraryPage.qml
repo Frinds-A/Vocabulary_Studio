@@ -10,7 +10,7 @@ Item {
     signal importRequested()
     property bool reveal: false
     property string query: ""
-    property string examFilter: "all"
+    property string examFilter: "cet"
     property string typeFilter: "all"
     property bool favoriteOnly: false
     property var filtered: []
@@ -22,16 +22,19 @@ Item {
         for (var i = 0; i < all.length; ++i) {
             var deck = all[i]
             var deckExam = String(deck.exam || "").toLowerCase()
-            if (page.examFilter === "cet") {
-                if (deckExam !== "cet" && deckExam !== "cet4" && deckExam !== "cet6")
+            if (page.favoriteOnly) {
+                if (!deck.favorite)
                     continue
-            } else if (page.examFilter !== "all" && deckExam !== page.examFilter) {
-                continue
+            } else {
+                if (page.examFilter === "cet") {
+                    if (deckExam !== "cet" && deckExam !== "cet4" && deckExam !== "cet6")
+                        continue
+                } else if (deckExam !== page.examFilter) {
+                    continue
+                }
+                if (page.typeFilter !== "all" && String(deck.type || "").toLowerCase() !== page.typeFilter)
+                    continue
             }
-            if (page.typeFilter !== "all" && String(deck.type || "").toLowerCase() !== page.typeFilter)
-                continue
-            if (page.favoriteOnly && !deck.favorite)
-                continue
             var hay = (String(deck.name || "") + " " + String(deck.exam || "") + " "
                        + String(deck.type || "") + " " + String(deck.tag || "")).toLowerCase()
             if (q.length && hay.indexOf(q) < 0)
@@ -85,15 +88,47 @@ Item {
                 Layout.fillWidth: true
                 spacing: 12
 
-                MD3.TextField {
-                    id: searchInput
+                Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 56
-                    type: "outlined"
-                    placeholderText: "搜索词库名称、考试类型…"
-                    leadingIcon: "search"
-                    text: page.query
-                    onTextChanged: if (text !== page.query) page.query = text
+                    Layout.preferredHeight: 52
+                    radius: 26
+                    color: T.white
+                    border.width: 1
+                    border.color: searchField.activeFocus ? T.ink : T.line
+
+                    RowLayout {
+                        anchors.fill: parent
+                        anchors.leftMargin: 18
+                        anchors.rightMargin: 16
+                        spacing: 10
+                        Text {
+                            text: "⌕"
+                            color: T.muted
+                            font.family: T.fontEN
+                            font.pixelSize: 20
+                        }
+                        TextField {
+                            id: searchField
+                            Layout.fillWidth: true
+                            Layout.fillHeight: true
+                            padding: 0
+                            color: T.ink
+                            placeholderText: "搜索词库名称、考试类型…"
+                            placeholderTextColor: T.faint
+                            font.family: T.fontCN
+                            font.pixelSize: 13
+                            verticalAlignment: TextInput.AlignVCenter
+                            background: Rectangle { color: "transparent" }
+                            text: page.query
+                            onTextChanged: if (text !== page.query) page.query = text
+                        }
+                    }
+                }
+
+                TextButton {
+                    text: page.favoriteOnly ? "★ 收藏夹" : "☆ 收藏夹"
+                    bordered: true
+                    onClicked: page.favoriteOnly = !page.favoriteOnly
                 }
 
                 AppButton {
@@ -108,58 +143,45 @@ Item {
                 }
             }
 
+
             RowLayout {
                 Layout.fillWidth: true
                 spacing: 9
 
                 Chip {
-                    label: "全部"
-                    selected: page.examFilter === "all" && page.typeFilter === "all" && !page.favoriteOnly
-                    onClicked: {
-                        page.examFilter = "all"
-                        page.typeFilter = "all"
-                        page.favoriteOnly = false
-                    }
-                }
-                Chip {
                     label: "四六级"
                     selected: page.examFilter === "cet"
-                    onClicked: page.examFilter = page.examFilter === "cet" ? "all" : "cet"
+                    onClicked: page.examFilter = "cet"
                 }
                 Chip {
                     label: "考研"
                     selected: page.examFilter === "postgrad"
-                    onClicked: page.examFilter = page.examFilter === "postgrad" ? "all" : "postgrad"
+                    onClicked: page.examFilter = "postgrad"
                 }
                 Chip {
                     label: "出国"
                     selected: page.examFilter === "abroad"
-                    onClicked: page.examFilter = page.examFilter === "abroad" ? "all" : "abroad"
+                    onClicked: page.examFilter = "abroad"
                 }
                 Chip {
                     label: "国内"
                     selected: page.examFilter === "domestic"
-                    onClicked: page.examFilter = page.examFilter === "domestic" ? "all" : "domestic"
+                    onClicked: page.examFilter = "domestic"
                 }
                 Chip {
                     label: "通用"
                     selected: page.examFilter === "general"
-                    onClicked: page.examFilter = page.examFilter === "general" ? "all" : "general"
+                    onClicked: page.examFilter = "general"
                 }
                 Chip {
                     label: "专业"
                     selected: page.examFilter === "professional"
-                    onClicked: page.examFilter = page.examFilter === "professional" ? "all" : "professional"
+                    onClicked: page.examFilter = "professional"
                 }
                 Chip {
                     label: "AI"
                     selected: page.examFilter === "ai"
-                    onClicked: page.examFilter = page.examFilter === "ai" ? "all" : "ai"
-                }
-                Chip {
-                    label: "收藏"
-                    selected: page.favoriteOnly
-                    onClicked: page.favoriteOnly = !page.favoriteOnly
+                    onClicked: page.examFilter = "ai"
                 }
                 Chip {
                     label: "单词"
