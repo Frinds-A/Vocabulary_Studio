@@ -148,68 +148,47 @@ Item {
 
         RowLayout {
             Layout.fillWidth: true
-            spacing: 12
+            spacing: 10
             visible: !backend.hasSession || backend.sessionComplete
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: 3
-                Text {
-                    text: "选择练习方式"
-                    color: T.ink
-                    font.family: T.fontCN
-                    font.pixelSize: 21
-                    font.bold: true
-                }
-                Text {
-                    text: "按自己的节奏，把每一个词记得更久。"
-                    color: T.muted
-                    font.family: T.fontCN
-                    font.pixelSize: 12
-                }
-            }
-
-            Item { Layout.fillWidth: true }
 
             Rectangle {
                 implicitHeight: 38
-                implicitWidth: deckLabel.implicitWidth + 34
+                implicitWidth: deckLabel.implicitWidth + 40
                 radius: 19
-                color: T.paleViolet
+                color: T.neutralPale
+                border.width: 1
+                border.color: T.line
                 HoverHandler { cursorShape: Qt.PointingHandCursor }
                 TapHandler { onTapped: deckPicker.open() }
+
                 Row {
                     id: deckLabel
                     anchors.centerIn: parent
                     spacing: 7
                     Text {
                         text: "▤"
-                        color: T.violet
+                        color: T.muted
                         font.family: T.fontCN
-                        font.pixelSize: 15
+                        font.pixelSize: 14
                         anchors.verticalCenter: parent.verticalCenter
                     }
                     Text {
-                        text: page.selectedDeck() ? page.selectedDeck().name : "未选择词库"
-                        color: T.violet
+                        text: page.selectedDeck() ? page.selectedDeck().name : "选择词库"
+                        color: T.ink
                         font.family: T.fontCN
                         font.pixelSize: 12
                         font.bold: true
                         anchors.verticalCenter: parent.verticalCenter
                     }
+                    Text {
+                        text: "⌄"
+                        color: T.faint
+                        font.family: T.fontCN
+                        font.pixelSize: 14
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
                 }
             }
-
-            TextButton {
-                text: "更换词库"
-                onClicked: deckPicker.open()
-            }
-        }
-
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: 9
-            visible: !backend.hasSession || backend.sessionComplete
 
             Text {
                 text: "范围"
@@ -294,7 +273,7 @@ Item {
             readonly property bool activeSession: backend.hasSession && !backend.sessionComplete
             Layout.fillWidth: true
             Layout.preferredHeight: activeSession ? Math.max(600, practiceScroll.height - 24)
-                                                   : (backend.hasSession ? 620 : 520)
+                                                   : (backend.hasSession ? 620 : 340)
             radius: activeSession ? 0 : 12
             color: activeSession ? T.canvas : T.white
             border.width: activeSession ? 0 : 1
@@ -309,23 +288,6 @@ Item {
                 spacing: 14
                 visible: !backend.hasSession && !backend.sessionComplete
 
-                Rectangle {
-                    anchors.horizontalCenter: parent.horizontalCenter
-                    width: 84
-                    height: 84
-                    radius: 12
-                    color: T.accent
-                    Text {
-                        anchors.centerIn: parent
-                        text: "A"
-                        color: T.white
-                        font.family: T.fontEN
-                        font.pixelSize: 46
-                        font.italic: true
-                        font.bold: true
-                    }
-                }
-                Item { width: 1; height: 4 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
                     text: "准备好开始了吗？"
@@ -336,24 +298,18 @@ Item {
                 }
                 Text {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    text: "先选词库，再选择练习方式。"
+                    text: "词书和练习方式已就绪，直接开始即可。"
                     color: T.muted
                     font.family: T.fontCN
                     font.pixelSize: 14
                 }
                 Item { width: 1; height: 6 }
-                Row {
+                AppButton {
                     anchors.horizontalCenter: parent.horizontalCenter
-                    spacing: 12
-                    AppButton {
-                        text: "开始今日计划"
-                        primary: true
-                        onClicked: backend.startPlan("today")
-                    }
-                    AppButton {
-                        text: "选择词库"
-                        onClicked: deckPicker.open()
-                    }
+                    text: "开始今日计划"
+                    shortcut: "Ctrl+Enter"
+                    primary: true
+                    onClicked: backend.startPlan("today")
                 }
             }
 
